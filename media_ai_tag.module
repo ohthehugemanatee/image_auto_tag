@@ -1,6 +1,0 @@
-<?php
-declare(strict_types = 1);
-/**
-* @file
-* Procedural code for media_ai_tag module.
-*/
