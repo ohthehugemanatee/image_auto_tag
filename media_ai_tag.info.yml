@@ -1,0 +1,4 @@
+name: Media AI Tag
+type: module
+description: 'AI/ML integration for the Drupal media module, to automatically tag your media files'
+core: 8.x
