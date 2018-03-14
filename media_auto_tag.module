@@ -11,9 +11,10 @@ use Drupal\media\MediaInterface;
 /**
  * Implements hook_ENTITY_TYPE_insert().
  *
- * @param \Drupal\media\MediaInterface $media
+ * {@inheritdoc}
  *
  * @throws \Drupal\Core\Entity\EntityStorageException
+ *   If we fail to save the entity tags.
  */
 function media_auto_tag_media_insert(MediaInterface $media) {
   $allowedBundles = [
@@ -31,9 +32,9 @@ function media_auto_tag_media_insert(MediaInterface $media) {
 }
 
 /**
- * Implements hook_ENTITY_TYPE_update.
+ * Implements hook_ENTITY_TYPE_update().
  *
- * @param \Drupal\media\MediaInterface $media
+ * {@inheritdoc}
  *
  * @throws \Drupal\Core\Entity\EntityStorageException
  */
@@ -94,6 +95,7 @@ function _media_auto_tag_process_entity(MediaInterface $media) : array {
  */
 function _media_auto_tag_get_tags($file) {
   $tags = [];
+
   // Pass the file to the recognition engine.
   // Pass the result to the classification engine.
   return $tags;
