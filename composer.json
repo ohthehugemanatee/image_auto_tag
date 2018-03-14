@@ -1,0 +1,17 @@
+{
+  "name": "drupal/media_auto_tag",
+  "description": "Drupal module to automatically tag media files using ML/AI",
+  "type": "drupal-module",
+  "authors": [
+    {
+      "name": "Campbell Vertesi",
+      "email": "campbell@vertesi.com",
+      "homepage": "https://campbell.vertesi.com/",
+      "role": "Maintainer"
+    }
+  ],
+  "require": {
+    "microsoft/windowsazure": "^0.5"
+  },
+  "license": "MIT"
+}
