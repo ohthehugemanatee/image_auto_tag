@@ -11,7 +11,7 @@
     }
   ],
   "require": {
-    "microsoft/windowsazure": "^0.5"
+    "microsoft/windowsazure": "^0.5.7"
   },
   "license": "MIT"
 }
