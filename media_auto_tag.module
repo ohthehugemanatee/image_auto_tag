@@ -7,6 +7,7 @@ declare(strict_types = 1);
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\media\MediaInterface;
+use GuzzleHttp\Exception\ClientException;
 
 /**
  * Implements hook_ENTITY_TYPE_insert().
@@ -87,19 +88,18 @@ function _media_auto_tag_process_entity(MediaInterface $media) : array {
 /**
  * Pass a file to the recognition/classification system.
  *
- * @param $file
- *   The source file.
- *
  * @return array
  *   An array of tags.
  */
-function _media_auto_tag_get_tags($file) {
+function _media_auto_tag_get_tags() {
   $tags = [];
-
+  $file = '/tmp/file.jpg';
+  $faceDetectionResult = _media_auto_tag_detect_faces($file);
   // Pass the file to the recognition engine.
   // Pass the result to the classification engine.
   return $tags;
 }
+
 
 /**
  * Apply an array of tags to a media object.
@@ -120,3 +120,4 @@ function _media_auto_tag_apply_tags(MediaInterface $media, array $tags) {
   // Apply the mapping.
   return $media->save();
 }
+

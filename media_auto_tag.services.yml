@@ -1,0 +1,4 @@
+services:
+  media_auto_tag.azure:
+    class: Drupal\media_auto_tag\AzureCognitiveServices
+    arguments: ['@http_client_factory']
