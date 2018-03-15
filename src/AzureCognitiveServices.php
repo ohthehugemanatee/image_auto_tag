@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Drupal\media_auto_tag;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Http\ClientFactory;
 
 /**
@@ -27,12 +28,16 @@ class AzureCognitiveServices {
    *
    * @param \Drupal\Core\Http\ClientFactory $httpClientFactory
    *   The guzzle HTTP client.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
+   *   The Configuration factory.
    */
-  public function __construct(ClientFactory $httpClientFactory) {
+  public function __construct(ClientFactory $httpClientFactory, ConfigFactoryInterface $configFactory) {
+    $config = $configFactory->get('media_auto_tag.settings');
     $this->httpClient = $httpClientFactory->fromOptions([
+      'base_uri' => $config->get('azure_endpoint'),
       'headers' => [
         'Content-Type' => 'application/json',
-        'Ocp-Apim-Subscription-Key' => '30ebdb47a8cb4985b85c4772a476b7a9',
+        'Ocp-Apim-Subscription-Key' => $config->get('azure_service_key'),
       ],
     ]);
   }
@@ -50,7 +55,7 @@ class AzureCognitiveServices {
    *   If anything goes wrong in the HTTP request to Azure.
    */
   public function detectFaces(string $file): array {
-    $response = $this->httpClient->request('POST', 'https://northeurope.api.cognitive.microsoft.com/face/v1.0/detect', [
+    $response = $this->httpClient->request('POST', 'detect', [
       'headers' => [
         'Content-Type' => 'application/octet-stream',
       ],
@@ -81,7 +86,7 @@ class AzureCognitiveServices {
    *   If anything goes wrong in the HTTP request.
    */
   public function createPersonGroup(string $id, string $name): bool {
-    $response = $this->httpClient->request('PUT', 'https://northeurope.api.cognitive.microsoft.com/face/v1.0/persongroups/' . $id, [
+    $response = $this->httpClient->request('PUT', 'persongroups/' . $id, [
       'body' => json_encode([
         'name' => $name,
       ]),
@@ -103,7 +108,7 @@ class AzureCognitiveServices {
    */
   public function deletePersonGroup(string $id) : bool {
     $response = $this->httpClient->request('DELETE',
-      'https://northeurope.api.cognitive.microsoft.com/face/v1.0/persongroups/' . $id);
+      'persongroups/' . $id);
     return empty($response->getBody());
   }
 
@@ -118,7 +123,7 @@ class AzureCognitiveServices {
    */
   public function listPersonGroups() : array {
     $response = $this->httpClient->request('GET',
-      'https://northeurope.api.cognitive.microsoft.com/face/v1.0/persongroups');
+      'persongroups');
     return json_decode((string) $response->getBody());
   }
 
@@ -137,7 +142,7 @@ class AzureCognitiveServices {
    *   If anything goes wrong with the HTTP request.
    */
   public function createPerson(string $personGroupId, string $name) {
-    $response = $this->httpClient->request('POST', 'https://northeurope.api.cognitive.microsoft.com/face/v1.0/persongroups/' . $personGroupId . '/persons', [
+    $response = $this->httpClient->request('POST', 'persongroups/' . $personGroupId . '/persons', [
       'body' => json_encode([
         'name' => $name,
       ]),
@@ -159,7 +164,7 @@ class AzureCognitiveServices {
    */
   public function listPeople(string $personGroupId): array {
     $response = $this->httpClient->request('GET',
-      'https://northeurope.api.cognitive.microsoft.com/face/v1.0/persongroups/' . $personGroupId . '/persons');
+      'persongroups/' . $personGroupId . '/persons');
 
     return json_decode((string) $response->getBody());
   }
@@ -182,7 +187,7 @@ class AzureCognitiveServices {
    */
   public function addFace(string $personGroupId, string $personId, string $file) {
     $response = $this->httpClient->request('POST',
-      "https://northeurope.api.cognitive.microsoft.com/face/v1.0/persongroups/{$personGroupId}/persons/{$personId}/persistedFaces", [
+      "persongroups/{$personGroupId}/persons/{$personId}/persistedFaces", [
         'headers' => [
           'Content-Type' => 'application/octet-stream',
         ],
@@ -207,7 +212,7 @@ class AzureCognitiveServices {
    */
   public function trainPersonGroup(string $id) : bool {
     $response = $this->httpClient->request('POST',
-      'https://northeurope.api.cognitive.microsoft.com/face/v1.0/persongroups/' . $id . '/train');
+      'persongroups/' . $id . '/train');
     return empty($response->getBody());
   }
 
@@ -225,7 +230,7 @@ class AzureCognitiveServices {
    */
   public function getPersonGroupTrainingStatus(string $id) : \stdClass {
     $response = $this->httpClient->request('GET',
-      'https://northeurope.api.cognitive.microsoft.com/face/v1.0/persongroups/' . $id . '/training');
+      'persongroups/' . $id . '/training');
     return json_decode((string) $response->getBody());
   }
 
@@ -244,7 +249,7 @@ class AzureCognitiveServices {
    *   If anything goes wrong with the HTTP request.
    */
   public function identifyFaces(array $faces, string $personGroup) : array {
-    $response = $this->httpClient->request('POST', 'https://northeurope.api.cognitive.microsoft.com/face/v1.0/identify', [
+    $response = $this->httpClient->request('POST', 'identify', [
       'body' => json_encode([
         'faceIds' => $faces,
         'personGroupId' => $personGroup,

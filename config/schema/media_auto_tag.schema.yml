@@ -1,0 +1,12 @@
+# Schema for the configuration files of the media_auto_tag module.
+
+media_auto_tag.settings:
+  type: config_object
+  label: 'Media Auto Tag settings'
+  mapping:
+    azure_endpoint:
+      type: string
+      label: 'Azure endpoint URL'
+    azure_service_key:
+      type: string
+      label: 'Azure service key'
