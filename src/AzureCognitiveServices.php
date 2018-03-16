@@ -6,6 +6,7 @@ namespace Drupal\media_auto_tag;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Http\ClientFactory;
+use GuzzleHttp\Exception\TransferException;
 
 /**
  * Class AzureCognitiveServices.
@@ -24,6 +25,20 @@ class AzureCognitiveServices {
   protected $httpClient;
 
   /**
+   * HTTP Client Factory.
+   *
+   * @var \Drupal\Core\Http\ClientFactory
+   */
+  protected $clientFactory;
+
+  /**
+   * The applied configuration.
+   *
+   * @var \Drupal\Core\Config\ImmutableConfig
+   */
+  protected $config;
+
+  /**
    * AzureCognitiveServices constructor.
    *
    * @param \Drupal\Core\Http\ClientFactory $httpClientFactory
@@ -32,6 +47,7 @@ class AzureCognitiveServices {
    *   The Configuration factory.
    */
   public function __construct(ClientFactory $httpClientFactory, ConfigFactoryInterface $configFactory) {
+    $this->clientFactory = $httpClientFactory;
     $config = $configFactory->get('media_auto_tag.settings');
     $this->httpClient = $httpClientFactory->fromOptions([
       'base_uri' => $config->get('azure_endpoint'),
@@ -40,6 +56,7 @@ class AzureCognitiveServices {
         'Ocp-Apim-Subscription-Key' => $config->get('azure_service_key'),
       ],
     ]);
+    $this->config = $config;
   }
 
   /**

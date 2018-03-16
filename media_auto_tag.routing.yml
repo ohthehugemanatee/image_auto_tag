@@ -5,3 +5,11 @@ media_auto_tag.settings:
     _title: 'Media Auto Tag settings'
   requirements:
     _permission: 'administer site configuration'
+
+media_auto_tag.train:
+  path: '/admin/config/media/media_auto_tag/train'
+  defaults:
+    _form: '\Drupal\media_auto_tag\Form\TrainingForm'
+    _title: 'Media Auto Tag Training'
+  requirements:
+    _permission: 'administer media'

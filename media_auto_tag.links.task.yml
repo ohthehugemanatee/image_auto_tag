@@ -1,0 +1,8 @@
+media_auto_tag.settings:
+  title: Settings
+  route_name: media_auto_tag.settings
+  base_route: media_auto_tag.settings
+media_auto_tag.train:
+  title: Train
+  route_name: media_auto_tag.train
+  base_route: media_auto_tag.settings

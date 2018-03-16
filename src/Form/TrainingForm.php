@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Drupal\media_auto_tag\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Form\ConfigFormBase;
+use Drupal\Core\Form\FormBase;
 use Drupal\media_auto_tag\AzureCognitiveServices;
 use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -15,7 +15,9 @@ use Drupal\Core\Form\FormStateInterface;
 /**
  * Defines a form for configuring azure services.
  */
-class SettingsForm extends ConfigFormBase {
+class TrainingForm extends FormBase {
+
+  const PEOPLE_GROUP = 'drupal_media_auto_tag_people';
 
   /**
    * CogSer service.
@@ -34,15 +36,13 @@ class SettingsForm extends ConfigFormBase {
    */
   public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices) {
     $this->azure = $azureCognitiveServices;
-
-    parent::__construct($configFactory);
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    return new static(
+    $static = new static(
       $container->get('config.factory'),
       $container->get('media_auto_tag.azure')
     );
@@ -52,7 +52,7 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function getFormId() {
-    return 'media_auto_tag_settings';
+    return 'media_auto_tag_training';
   }
 
   /**
@@ -69,20 +69,33 @@ class SettingsForm extends ConfigFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
     $config = $this->config('media_auto_tag.settings');
-
-    $form['azure_endpoint'] = [
-      '#title' => t('Azure endpoint'),
-      '#description' => t('The Media Services endpoint you want to use.'),
-      '#type' => 'textfield',
-      '#default_value' => $config->get('azure_endpoint'),
+    // Build a table of existing People.
+    // @TODO: caching!
+    $form['people'] = [
+      '#type' => 'table',
+      '#header' => [
+        'name' => $this->t('Name'),
+        'images' => $this->t('Images'),
+      ],
+      '#title' => $this->t('Known people'),
+      '#rows' => [],
+      '#empty' => $this->t('There are no known people yet'),
     ];
-    $form['azure_service_key'] = [
-      '#title' => t('Azure service key'),
-      '#description' => t('The Media Services API key to send to the endpoint.'),
-      '#type' => 'textfield',
-      '#default_value' => $config->get('azure_service_key'),
-    ];
-
+    // Validate the API resource is accessible and setup correctly.
+    if ($this->validateAzureResource()) {
+      try {
+        foreach ($this->azure->listPeople(self::PEOPLE_GROUP) as $person) {
+          $form['people']['#rows'][$person['id']] = [
+            'name' => $person['name'] ?? '',
+            'images' => \count($person['faces']),
+          ];
+        }
+      }
+      catch (TransferException $e) {
+        $this->messenger()
+          ->addError('Error listing People: ' . $e->getMessage());
+      }
+    }
     return parent::buildForm($form, $form_state);
   }
 
@@ -109,8 +122,32 @@ class SettingsForm extends ConfigFormBase {
     if ($form_state->getValue('azure_service_key') === NULL) {
       $form_state->setErrorByName('azure_service_key', 'The Azure service key must not be empty');
     }
-    // @TODO: test the connection here?
+    // Test the connection.
+    try {
+      $this->azure->listPersonGroups();
+    } catch (TransferException $e) {
+      $this->messenger()
+        ->addError('Could not connect with this endpoint and API key. Error: ' . $e->getMessage());
+    }
     parent::validateForm($form, $form_state);
   }
 
+  /**
+   * @return bool
+   */
+  protected function validateAzureResource() {
+
+    try {
+      $personGroups = $this->azure->listPersonGroups();
+      // Create our personGroup, if it doesn't already exist.
+      if (empty($personGroups)) {
+        $this->azure->createPersonGroup(self::PEOPLE_GROUP, 'Drupal media auto tag group');
+      }
+    }
+    catch (TransferException $e) {
+      $this->messenger()->addError('Could not connect with this endpoint and API key. Error: ' . $e->getMessage());
+      return FALSE;
+    }
+    return TRUE;
+  }
 }
