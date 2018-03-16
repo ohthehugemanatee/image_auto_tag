@@ -6,11 +6,7 @@ namespace Drupal\media_auto_tag\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
-use Drupal\Core\Messenger\Messenger;
-use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\media_auto_tag\AzureCognitiveServices;
-use GuzzleHttp\Exception\BadResponseException;
-use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,7 +32,7 @@ class SettingsForm extends ConfigFormBase {
    * @param \Drupal\media_auto_tag\AzureCognitiveServices $azureCognitiveServices
    *   Azure CogSer service.
    */
-  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices, MessengerInterface $messenger) {
+  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices) {
     $this->azure = $azureCognitiveServices;
 
     parent::__construct($configFactory);
@@ -48,8 +44,7 @@ class SettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('media_auto_tag.azure'),
-      $container->get('messenger')
+      $container->get('media_auto_tag.azure')
     );
   }
 
