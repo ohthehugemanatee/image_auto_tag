@@ -1,0 +1,7 @@
+media_auto_tag.settings:
+  path: '/admin/config/media/media_auto_tag'
+  defaults:
+    _form: '\Drupal\media_auto_tag\Form\SettingsForm'
+    _title: 'Media Auto Tag settings'
+  requirements:
+    _permission: 'administer site configuration'
