@@ -68,7 +68,7 @@ class AzureCognitiveServices {
    * @return array
    *   The decoded JSON detection result.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong in the HTTP request to Azure.
    */
   public function detectFaces(string $file): array {
@@ -99,7 +99,7 @@ class AzureCognitiveServices {
    * @return bool
    *   TRUE on success, FALSE on failure.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong in the HTTP request.
    */
   public function createPersonGroup(string $id, string $name): bool {
@@ -120,7 +120,7 @@ class AzureCognitiveServices {
    * @return bool
    *   TRUE on success, FALSE on failure.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong in the HTTP request.
    */
   public function deletePersonGroup(string $id) : bool {
@@ -135,7 +135,7 @@ class AzureCognitiveServices {
    * @return array
    *   The list of groups.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
   public function listPersonGroups() : array {
@@ -155,7 +155,7 @@ class AzureCognitiveServices {
    * @return string
    *   The personId of the created person.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
   public function createPerson(string $personGroupId, string $name) {
@@ -176,7 +176,7 @@ class AzureCognitiveServices {
    * @return array
    *   The list of person Ids.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
   public function listPeople(string $personGroupId): array {
@@ -199,7 +199,7 @@ class AzureCognitiveServices {
    * @return string
    *   The face Id if successful, empty if not.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
   public function addFace(string $personGroupId, string $personId, string $file) {
@@ -224,7 +224,7 @@ class AzureCognitiveServices {
    * @return bool
    *   TRUE on success, FALSE on failure.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
   public function trainPersonGroup(string $id) : bool {
@@ -242,7 +242,7 @@ class AzureCognitiveServices {
    * @return \stdClass
    *   The status message.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
   public function getPersonGroupTrainingStatus(string $id) : \stdClass {
@@ -262,7 +262,7 @@ class AzureCognitiveServices {
    * @return array
    *   The face identification result.
    *
-   * @throws \GuzzleHttp\Exception\BadResponseException
+   * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
   public function identifyFaces(array $faces, string $personGroup) : array {
