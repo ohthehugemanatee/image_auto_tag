@@ -1,5 +1,0 @@
-entity.media_auto_tag_person_map.add_form:
-  route_name: entity.media_auto_tag_person_map.add_form
-  title: 'Add Person map'
-  appears_on:
-    - entity.media_auto_tag_person_map.collection

@@ -10,20 +10,3 @@ media_auto_tag_person_map.settings_tab:
   route_name: media_auto_tag_person_map.settings
   title: 'Settings'
   base_route: media_auto_tag_person_map.settings
-
-entity.media_auto_tag_person_map.canonical:
-  route_name: entity.media_auto_tag_person_map.canonical
-  base_route: entity.media_auto_tag_person_map.canonical
-  title: 'View'
-
-entity.media_auto_tag_person_map.edit_form:
-  route_name: entity.media_auto_tag_person_map.edit_form
-  base_route: entity.media_auto_tag_person_map.canonical
-  title: 'Edit'
-
-entity.media_auto_tag_person_map.delete_form:
-  route_name:  entity.media_auto_tag_person_map.delete_form
-  base_route:  entity.media_auto_tag_person_map.canonical
-  title: Delete
-  weight: 10
-

@@ -4,35 +4,14 @@ namespace Drupal\media_auto_tag\Entity;
 
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityChangedInterface;
-use Drupal\user\EntityOwnerInterface;
+use Drupal\Core\Entity\EntityInterface;
 
 /**
  * Provides an interface for defining Person map entities.
  *
  * @ingroup media_auto_tag
  */
-interface PersonMapInterface extends ContentEntityInterface, EntityChangedInterface, EntityOwnerInterface {
-
-  // Add get/set methods for your configuration properties here.
-
-  /**
-   * Gets the Person map name.
-   *
-   * @return string
-   *   Name of the Person map.
-   */
-  public function getName();
-
-  /**
-   * Sets the Person map name.
-   *
-   * @param string $name
-   *   The Person map name.
-   *
-   * @return \Drupal\media_auto_tag\Entity\PersonMapInterface
-   *   The called Person map entity.
-   */
-  public function setName($name);
+interface PersonMapInterface extends ContentEntityInterface, EntityChangedInterface {
 
   /**
    * Gets the Person map creation timestamp.
@@ -40,7 +19,7 @@ interface PersonMapInterface extends ContentEntityInterface, EntityChangedInterf
    * @return int
    *   Creation timestamp of the Person map.
    */
-  public function getCreatedTime();
+  public function getCreatedTime() : int;
 
   /**
    * Sets the Person map creation timestamp.
@@ -51,27 +30,71 @@ interface PersonMapInterface extends ContentEntityInterface, EntityChangedInterf
    * @return \Drupal\media_auto_tag\Entity\PersonMapInterface
    *   The called Person map entity.
    */
-  public function setCreatedTime($timestamp);
+  public function setCreatedTime($timestamp) : PersonMapInterface;
 
   /**
-   * Returns the Person map published status indicator.
+   * Get the foreign Id component of the map.
    *
-   * Unpublished Person map are only visible to restricted users.
-   *
-   * @return bool
-   *   TRUE if the Person map is published.
+   * @return string
+   *   The foreign ID.
    */
-  public function isPublished();
+  public function getForeignId() : string;
 
   /**
-   * Sets the published status of a Person map.
+   * Sets the Person map Foreign Id..
    *
-   * @param bool $published
-   *   TRUE to set this Person map to published, FALSE to set it to unpublished.
+   * @param string $foreignId
+   *   The Person map creation timestamp.
    *
    * @return \Drupal\media_auto_tag\Entity\PersonMapInterface
-   *   The called Person map entity.
+   *   The called Person Map entity.
    */
-  public function setPublished($published);
+  public function setForeignId($foreignId) : PersonMapInterface;
+
+  /**
+   * Get the Id of the referenced Drupal entity.
+   *
+   * @return string
+   *   The Id of the referenced Drupal entity.
+   */
+  public function getLocalId() : string;
+
+  /**
+   * Set the Id of the referenced Drupal entity.
+   *
+   * @param string $localId
+   *   The Id of the referenced Drupal entity.
+   *
+   * @return \Drupal\media_auto_tag\Entity\PersonMapInterface
+   *   The called Person Map entity.
+   */
+  public function setLocalId(string $localId) : PersonMapInterface;
+
+  /**
+   * Get the Entity Type Id of the local side of the mapping.
+   *
+   * @return string
+   *   The local entity type Id.
+   */
+  public function getLocalEntityTypeId() : string;
+
+  /**
+   * Set the entity type Id of the referenced Drupal entity.
+   *
+   * @param string $entityTypeId
+   *   The entity type Id of the referenced Drupal entity.
+   *
+   * @return \Drupal\media_auto_tag\Entity\PersonMapInterface
+   *   The called Person Map entity.
+   */
+  public function setLocalEntityTypeId(string $entityTypeId) : PersonMapInterface;
+
+  /**
+   * Get the referenced Drupal entity.
+   *
+   * @return \Drupal\Core\Entity\EntityInterface
+   *   The Drupal entity referenced by the map.
+   */
+  public function getLocalEntity() : EntityInterface;
 
 }
