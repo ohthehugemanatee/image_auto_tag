@@ -4,8 +4,10 @@ declare(strict_types = 1);
 
 namespace Drupal\media_auto_tag\Form;
 
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
+use Drupal\Core\TypedData\Plugin\DataType\Uri;
 use Drupal\media_auto_tag\AzureCognitiveServices;
 use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -103,12 +105,18 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
-    if ($form_state->getValue('azure_endpoint') === NULL) {
-      $form_state->setErrorByName('azure_endpoint', 'The Azure endpoint must not be empty');
+    $endpoint = $form_state->getValue('azure_endpoint');
+    if ($endpoint === NULL || !UrlHelper::isValid($endpoint)) {
+      $form_state->setErrorByName('azure_endpoint', 'The Azure endpoint must be a valid URL.');
+    }
+    // Make sure the endpoint ends in a slash.
+    if (substr($endpoint, -1, 1) !== '/') {
+      $form_state->setValue('azure_endpoint', $endpoint . '/');
     }
     if ($form_state->getValue('azure_service_key') === NULL) {
       $form_state->setErrorByName('azure_service_key', 'The Azure service key must not be empty');
     }
+
     // @TODO: test the connection here?
     parent::validateForm($form, $form_state);
   }
