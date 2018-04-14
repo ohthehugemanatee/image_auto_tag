@@ -42,7 +42,7 @@ class TrainingForm extends FormBase {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    $static = new static(
+    return new static(
       $container->get('config.factory'),
       $container->get('media_auto_tag.azure')
     );
@@ -51,14 +51,14 @@ class TrainingForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function getFormId() {
+  public function getFormId() : string {
     return 'media_auto_tag_training';
   }
 
   /**
    * {@inheritdoc}
    */
-  protected function getEditableConfigNames() {
+  protected function getEditableConfigNames() : array {
     return [
       'media_auto_tag.settings',
     ];
@@ -67,7 +67,7 @@ class TrainingForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
+  public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) : array {
     $config = $this->config('media_auto_tag.settings');
     // Build a table of existing People.
     // @TODO: caching!
@@ -96,7 +96,11 @@ class TrainingForm extends FormBase {
           ->addError('Error listing People: ' . $e->getMessage());
       }
     }
-    return parent::buildForm($form, $form_state);
+    $form['add'] = [
+      '#type' => 'button',
+      '#title' => 'Add',
+    ];
+    return $form;
   }
 
   /**
@@ -133,21 +137,36 @@ class TrainingForm extends FormBase {
   }
 
   /**
+   * Validate that the Azure cognitive service responds and is ready.
+   *
    * @return bool
+   *   TRUE if the Azure resource is responding and has the Person Group.
    */
-  protected function validateAzureResource() {
-
+  protected function validateAzureResource() : bool {
     try {
       $personGroups = $this->azure->listPersonGroups();
-      // Create our personGroup, if it doesn't already exist.
-      if (empty($personGroups)) {
-        $this->azure->createPersonGroup(self::PEOPLE_GROUP, 'Drupal media auto tag group');
-      }
     }
     catch (TransferException $e) {
-      $this->messenger()->addError('Could not connect with this endpoint and API key. Error: ' . $e->getMessage());
-      return FALSE;
+      // Returns a 404 if you have no Person Groups yet.
+      if ($e->getCode() === 404 && json_decode((string) $e->getResponse()->getBody())->message === 'Resource not found') {
+        $personGroups = [];
+      }
+      else {
+        $this->messenger()->addError('Could not connect with this endpoint and API key. Error: ' . $e->getMessage());
+        return FALSE;
+      }
+    }
+    // If our Person Group doesn't exist yet.
+    if (!isset($personGroups[self::PEOPLE_GROUP])) {
+      try {
+        $this->azure->createPersonGroup(self::PEOPLE_GROUP, 'Automatically created group for Drupal media auto tag module.');
+      }
+      catch (GuzzleException $e) {
+        $this->messenger()->addError('Could not create the Drupal People group. Error: ' . $e->getMessage());
+        return FALSE;
+      }
     }
     return TRUE;
   }
+
 }
