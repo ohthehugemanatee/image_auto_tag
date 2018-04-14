@@ -50,10 +50,10 @@ class AzureCognitiveServices {
     $this->clientFactory = $httpClientFactory;
     $config = $configFactory->get('media_auto_tag.settings');
     $this->httpClient = $httpClientFactory->fromOptions([
-      'base_uri' => $config->get('azure_endpoint'),
+      'base_uri' => (string) $config->get('azure_endpoint'),
       'headers' => [
         'Content-Type' => 'application/json',
-        'Ocp-Apim-Subscription-Key' => $config->get('azure_service_key'),
+        'Ocp-Apim-Subscription-Key' => (string) $config->get('azure_service_key'),
       ],
     ]);
     $this->config = $config;
@@ -108,7 +108,7 @@ class AzureCognitiveServices {
         'name' => $name,
       ]),
     ]);
-    return empty($response->getBody());
+    return $response->getBody() === NULL;
   }
 
   /**
@@ -141,6 +141,24 @@ class AzureCognitiveServices {
   public function listPersonGroups() : array {
     $response = $this->httpClient->request('GET',
       'persongroups');
+    return json_decode((string) $response->getBody());
+  }
+
+  /**
+   * Get an individual Person Group.
+   *
+   * @param string $id
+   *   The person group Id.
+   *
+   * @return array
+   *   Details about the Person Group.
+   *
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   *   If anything goes wrong with the HTTP request.
+   */
+  public function getPersonGroup(string $id) : array {
+    $response = $this->httpClient->request('GET',
+      'persongroup/' . $id);
     return json_decode((string) $response->getBody());
   }
 
