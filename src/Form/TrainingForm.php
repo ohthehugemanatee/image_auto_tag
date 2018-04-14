@@ -147,21 +147,19 @@ class TrainingForm extends FormBase {
       $personGroups = $this->azure->listPersonGroups();
     }
     catch (TransferException $e) {
-      // Returns a 404 if you have no Person Groups yet.
-      if ($e->getCode() === 404 && json_decode((string) $e->getResponse()->getBody())->message === 'Resource not found') {
-        $personGroups = [];
-      }
-      else {
-        $this->messenger()->addError('Could not connect with this endpoint and API key. Error: ' . $e->getMessage());
-        return FALSE;
-      }
+      $this->messenger()->addError('Could not connect with this endpoint and API key. Error: ' . $e->getMessage());
+      return FALSE;
     }
-    // If our Person Group doesn't exist yet.
-    if (!isset($personGroups[self::PEOPLE_GROUP])) {
+
+    // If our personGroup doesn't exist yet.
+    $personGroup = array_filter($personGroups, function ($group) {
+      return $group->personGroupId === self::PEOPLE_GROUP;
+    });
+    if ($personGroup === []) {
       try {
         $this->azure->createPersonGroup(self::PEOPLE_GROUP, 'Automatically created group for Drupal media auto tag module.');
       }
-      catch (GuzzleException $e) {
+      catch (TransferException $e) {
         $this->messenger()->addError('Could not create the Drupal People group. Error: ' . $e->getMessage());
         return FALSE;
       }
