@@ -9,6 +9,20 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\media\MediaInterface;
 use GuzzleHttp\Exception\ClientException;
 
+
+function media_auto_tag_test(string $action) {
+  /** @var \Drupal\media_auto_tag\AzureCognitiveServices $service */
+  $service = \Drupal::service('media_auto_tag.azure');
+  switch ($action) {
+    case 'listPersonGroups':
+      return $service->listPersonGroups();
+
+    case 'detectFaces':
+      return $service->detectFaces('/tmp/detect-faces.jpg');
+
+  }
+}
+
 /**
  * Implements hook_ENTITY_TYPE_insert().
  *
@@ -27,7 +41,7 @@ function media_auto_tag_media_insert(MediaInterface $media) {
     $tags = _media_auto_tag_process_entity($media);
     if (!empty($tags)) {
       // Apply the tags for the entity.
-      _media_auto_tag_apply_tags($media, $tags);
+      //_media_auto_tag_apply_tags($media, $tags);
     }
   }
 }
@@ -48,7 +62,7 @@ function media_auto_tag_media_update(MediaInterface $media) {
     $tags = _media_auto_tag_process_entity($media);
     if (!empty($tags)) {
       // Apply the tags for the entity.
-      _media_auto_tag_apply_tags($media, $tags);
+      //_media_auto_tag_apply_tags($media, $tags);
     }
   }
 }
