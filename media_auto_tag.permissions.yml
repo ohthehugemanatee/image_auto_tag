@@ -1,0 +1,19 @@
+add person map entities:
+  title: 'Create new Person map entities'
+
+administer person map entities:
+  title: 'Administer Person map entities'
+  description: 'Allow to access the administration form to configure Person map entities.'
+  restrict access: true
+
+delete person map entities:
+  title: 'Delete Person map entities'
+
+edit person map entities:
+  title: 'Edit Person map entities'
+
+view published person map entities:
+  title: 'View published Person map entities'
+
+view unpublished person map entities:
+  title: 'View unpublished Person map entities'

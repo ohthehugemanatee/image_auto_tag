@@ -3,3 +3,16 @@ media_auto_tag.settings:
   description: 'Administrative settings for the Media Auto Tag module.'
   route_name: media_auto_tag.settings
   parent: 'system.admin_config_media'
+# Person map menu items definition
+entity.media_auto_tag_person_map.collection:
+  title: 'Person map list'
+  route_name: entity.media_auto_tag_person_map.collection
+  description: 'List Person map entities'
+  parent: system.admin_structure
+  weight: 100
+
+media_auto_tag_person_map.admin.structure.settings:
+  title: 'Person map settings'
+  description: 'Configure Person map entities'
+  route_name: media_auto_tag_person_map.settings
+  parent: system.admin_structure
