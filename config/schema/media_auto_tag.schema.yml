@@ -13,3 +13,6 @@ media_auto_tag.settings:
     person_entity_bundle:
       type: string
       label: 'Person entity bundle'
+    person_image_field:
+      type: string
+      label: 'Person image field'

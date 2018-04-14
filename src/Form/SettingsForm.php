@@ -8,6 +8,7 @@ use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\ContentEntityType;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\TypedData\Plugin\DataType\Uri;
@@ -37,6 +38,13 @@ class SettingsForm extends ConfigFormBase {
   protected $entityTypeManager;
 
   /**
+   * Entity Field Manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+  /**
    * SettingsForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -46,9 +54,10 @@ class SettingsForm extends ConfigFormBase {
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   Entity Type Manager service.
    */
-  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices, EntityTypeManagerInterface $entityTypeManager) {
+  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices, EntityTypeManagerInterface $entityTypeManager, EntityFieldManagerInterface $entityFieldManager) {
     $this->azure = $azureCognitiveServices;
     $this->entityTypeManager = $entityTypeManager;
+    $this->entityFieldManager = $entityFieldManager;
 
     parent::__construct($configFactory);
   }
@@ -60,7 +69,8 @@ class SettingsForm extends ConfigFormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('media_auto_tag.azure'),
-      $container->get('entity_type.manager')
+      $container->get('entity_type.manager'),
+      $container->get('entity_field.manager')
     );
   }
 
@@ -124,6 +134,23 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'select',
       '#options' => $contentEntityOptions,
     ];
+    // Image field to use for training.
+    // @todo Support Media fields.
+    // @todo Filter the list by chosen entity bundle.
+    // @todo Support crop API, or similarly allow users to draw a box around a face.
+    $fieldMap = $this->entityFieldManager->getFieldMapByFieldType('image');
+    $imageFieldOptions = [];
+    foreach ($fieldMap as $entityType => $entityTypeFields) {
+      foreach (array_keys($entityTypeFields) as $fieldName) {
+        $imageFieldOptions["{$entityType}.{$fieldName}"] = "{$entityType}.{$fieldName}";
+      }
+    }
+    $form['person_image_field'] = [
+      '#title' => t('Person image field'),
+      '#description' => t('The image field from which to get training images of the persons face. Values in this field should contain ONLY the head, as closely cropped as possible.'),
+      '#type' => 'select',
+      '#options' => $imageFieldOptions,
+    ];
     return parent::buildForm($form, $form_state);
   }
 
@@ -136,6 +163,7 @@ class SettingsForm extends ConfigFormBase {
       ->set('azure_endpoint', $values['azure_endpoint'])
       ->set('azure_service_key', $values['azure_service_key'])
       ->set('person_entity_bundle', $values['person_entity_bundle'])
+      ->set('person_image_field', $values['person_image_field'])
       ->save();
 
     parent::submitForm($form, $form_state);
@@ -155,6 +183,15 @@ class SettingsForm extends ConfigFormBase {
     }
     if ($form_state->getValue('azure_service_key') === NULL) {
       $form_state->setErrorByName('azure_service_key', 'The Azure service key must not be empty');
+    }
+    // Make sure the field and bundle choice match.
+    $entityBundleArray = explode('.', $form_state->getValue('person_entity_bundle'));
+    list($entityTypeId, $entityBundleId) = $entityBundleArray;
+    $imageField = $form_state->getValue('person_image_field');
+    $fieldMap = $this->entityFieldManager->getFieldMapByFieldType('image');
+    if (!isset($fieldMap[$entityTypeId][$imageField]) ||
+      !\in_array($entityBundleId, $fieldMap[$entityTypeId][$imageField]['bundles'], TRUE)) {
+      $form_state->setErrorByName('person_image_field', 'The image field must exist on the person entity bundle.');
     }
 
     // @TODO: test the connection here?
