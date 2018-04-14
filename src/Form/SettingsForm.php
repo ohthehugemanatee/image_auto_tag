@@ -6,6 +6,9 @@ namespace Drupal\media_auto_tag\Form;
 
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\ContentEntityBase;
+use Drupal\Core\Entity\ContentEntityType;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\TypedData\Plugin\DataType\Uri;
 use Drupal\media_auto_tag\AzureCognitiveServices;
@@ -27,15 +30,25 @@ class SettingsForm extends ConfigFormBase {
   protected $azure;
 
   /**
+   * Entity Type Manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * SettingsForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   Config factory service.
    * @param \Drupal\media_auto_tag\AzureCognitiveServices $azureCognitiveServices
    *   Azure CogSer service.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   Entity Type Manager service.
    */
-  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices) {
+  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices, EntityTypeManagerInterface $entityTypeManager) {
     $this->azure = $azureCognitiveServices;
+    $this->entityTypeManager = $entityTypeManager;
 
     parent::__construct($configFactory);
   }
@@ -46,7 +59,8 @@ class SettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('media_auto_tag.azure')
+      $container->get('media_auto_tag.azure'),
+      $container->get('entity_type.manager')
     );
   }
 
@@ -85,6 +99,31 @@ class SettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('azure_service_key'),
     ];
 
+    // Choose the entity type and bundle to represent people.
+    $contentEntityTypes = $this->entityTypeManager->getDefinitions();
+    $contentEntityOptions = [];
+    foreach ($contentEntityTypes as $key => $entityType) {
+      $bundleTypeId = NULL;
+      if ($entityType instanceof ContentEntityType) {
+        $bundleTypeId = $entityType->getBundleEntityType();
+        // If this is an unbundled entity type.
+        if ($bundleTypeId === NULL) {
+          $contentEntityOptions[$key] = $entityType->getLabel();
+          continue;
+        }
+        // If bundled, then add all the bundles.
+        $bundles = $this->entityTypeManager->getStorage($bundleTypeId)->loadMultiple();
+        foreach ($bundles as $bundle) {
+          $contentEntityOptions["{$key}.{$bundle->id()}"] = "{$entityType->getLabel()}: {$bundle->label()}";
+        }
+      }
+    }
+    $form['person_entity_bundle'] = [
+      '#title' => t('People Entity Type'),
+      '#description' => t('The Drupal Entity Type which contains people to be recognized. Entities of this type will be "tags" on other content.'),
+      '#type' => 'select',
+      '#options' => $contentEntityOptions,
+    ];
     return parent::buildForm($form, $form_state);
   }
 
@@ -96,6 +135,7 @@ class SettingsForm extends ConfigFormBase {
     $this->config('media_auto_tag.settings')
       ->set('azure_endpoint', $values['azure_endpoint'])
       ->set('azure_service_key', $values['azure_service_key'])
+      ->set('person_entity_bundle', $values['person_entity_bundle'])
       ->save();
 
     parent::submitForm($form, $form_state);

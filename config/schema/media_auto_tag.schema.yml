@@ -10,3 +10,6 @@ media_auto_tag.settings:
     azure_service_key:
       type: string
       label: 'Azure service key'
+    person_entity_bundle:
+      type: string
+      label: 'Person entity bundle'
