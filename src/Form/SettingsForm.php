@@ -133,6 +133,7 @@ class SettingsForm extends ConfigFormBase {
       '#description' => t('The Drupal Entity Type which contains people to be recognized. Entities of this type will be "tags" on other content.'),
       '#type' => 'select',
       '#options' => $contentEntityOptions,
+      '#default_value' => $config->get('person_entity_bundle'),
     ];
     // Image field to use for training.
     // @todo Support Media fields.
@@ -150,6 +151,7 @@ class SettingsForm extends ConfigFormBase {
       '#description' => t('The image field from which to get training images of the persons face. Values in this field should contain ONLY the head, as closely cropped as possible.'),
       '#type' => 'select',
       '#options' => $imageFieldOptions,
+      '#default_value' => $config->get('person_image_field'),
     ];
     return parent::buildForm($form, $form_state);
   }
