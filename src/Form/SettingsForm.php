@@ -188,15 +188,18 @@ class SettingsForm extends ConfigFormBase {
     $entityBundleArray = explode('.', $form_state->getValue('person_entity_bundle'));
     list($entityTypeId, $entityBundleId) = $entityBundleArray;
     $imageField = $form_state->getValue('person_image_field');
+    $imageFieldEntityInfo = explode('.', $imageField);
+    list($imageFieldEntity, $imageFieldName) = $imageFieldEntityInfo;
     $fieldMap = $this->entityFieldManager->getFieldMapByFieldType('image');
-    if (!isset($fieldMap[$entityTypeId][$imageField]) ||
-      !\in_array($entityBundleId, $fieldMap[$entityTypeId][$imageField]['bundles'], TRUE)) {
+    if (!isset($fieldMap[$entityTypeId][$imageFieldName]) ||
+      !\in_array($entityBundleId, $fieldMap[$entityTypeId][$imageFieldName]['bundles'], TRUE)) {
       $form_state->setErrorByName('person_image_field', 'The image field must exist on the person entity bundle.');
     }
 
     // Test the connection with these details.
     try {
       AzureCognitiveServices::testCredentials($form_state->getValue('azure_endpoint'), $form_state->getValue('azure_service_key'));
+      $this->messenger()->addMessage('Connection test successful.');
     }
     catch (TransferException $e) {
       $this->messenger()->addWarning("Received code {$e->getCode()} from Azure. Message: '{$e->getMessage()}'");
