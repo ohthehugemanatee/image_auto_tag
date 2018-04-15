@@ -60,6 +60,32 @@ class AzureCognitiveServices {
   }
 
   /**
+   * Test given Azure credentials.
+   *
+   * @param string $endpoint
+   *   The endpoint base URL to use for the test.
+   * @param string $serviceKey
+   *   The service key to use for the test.
+   *
+   * @return bool
+   *   TRUE on success, FALSE on failure... usually failure throws an exception.
+   *
+   * @throws \GuzzleHttp\Exception\TransferException
+   *   An HTTP exception, direct from Guzzle.
+   */
+  public static function testCredentials(string $endpoint, string $serviceKey) : bool {
+    $response = \Drupal::httpClient()->get('persongroups',
+      [
+        'base_uri' => $endpoint,
+        'headers' => [
+          'Content-Type' => 'application/json',
+          'Ocp-Apim-Subscription-Key' => $serviceKey,
+        ],
+      ]);
+    return $response->getStatusCode() === 200;
+  }
+
+  /**
    * Run face detection.
    *
    * @param string $file

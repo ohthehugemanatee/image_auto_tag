@@ -11,6 +11,7 @@ use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\media_auto_tag\AzureCognitiveServices;
+use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\Core\Form\FormStateInterface;
@@ -193,7 +194,14 @@ class SettingsForm extends ConfigFormBase {
       $form_state->setErrorByName('person_image_field', 'The image field must exist on the person entity bundle.');
     }
 
-    // @TODO: test the connection here?
+    // Test the connection with these details.
+    try {
+      AzureCognitiveServices::testCredentials($form_state->getValue('azure_endpoint'), $form_state->getValue('azure_service_key'));
+    }
+    catch (TransferException $e) {
+      $this->messenger()->addWarning("Received code {$e->getCode()} from Azure. Message: '{$e->getMessage()}'");
+    }
+
     parent::validateForm($form, $form_state);
   }
 
