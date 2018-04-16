@@ -96,6 +96,12 @@ class SettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
     $config = $this->config('media_auto_tag.settings');
 
+    $trainingStatus = $this->azure->getPersonGroupTrainingStatus(AzureCognitiveServices::PEOPLE_GROUP);
+    $form['training_status'] = [
+      '#title' => t('Training status'),
+      '#type' => 'item',
+      '#description' => (string) $trainingStatus->status,
+    ];
     $form['azure_endpoint'] = [
       '#title' => t('Azure endpoint'),
       '#description' => t('The Media Services endpoint you want to use.'),
@@ -161,7 +167,23 @@ class SettingsForm extends ConfigFormBase {
       '#default_value' => TRUE,
       '#disabled' => TRUE,
     ];
+
+
+    $form['train'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Train now'),
+      '#name' => 'train',
+      '#submit' => [[$this, 'train']],
+    ];
     return parent::buildForm($form, $form_state);
+  }
+
+  /**
+   * Submit handler for the "Train" button.
+   */
+  public function train(array &$form, FormStateInterface $form_state) {
+    $this->azure->trainPersonGroup(AzureCognitiveServices::PEOPLE_GROUP);
+    $this->messenger()->addStatus('Training request submitted.');
   }
 
   /**

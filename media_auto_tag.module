@@ -105,7 +105,7 @@ function media_auto_tag_entity_insert(EntityInterface $entity) {
         try {
           $faceId = $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, $personId, $imagePath);
           PersonMap::create([
-            'foreign_id' => $faceId,
+            'foreign_id' => $faceId->persistedFaceId,
             'local_id' => $image->entity->id(),
             'local_entity_type' => 'file',
           ])->save();
@@ -134,9 +134,9 @@ function media_auto_tag_entity_insert(EntityInterface $entity) {
           // Identify detected faces.
           $facesToIdentify = [];
           foreach ($detectedFaces as $detectedFace) {
-            $facesToIdentify[] = $detectedFace['faceId'];
+            $facesToIdentify[] = $detectedFace->faceId;
           }
-          $identifiedFaces = $azure->identifyFaces($detectedFaces, AzureCognitiveServices::PEOPLE_GROUP);
+          $identifiedFaces = $azure->identifyFaces(array_slice($detectedFaces, 0, 10), AzureCognitiveServices::PEOPLE_GROUP);
           // Loop over the identified faces and tag with their Drupal entities.
           $personIds = [];
           foreach ($identifiedFaces as $identifiedFace) {

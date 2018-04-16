@@ -130,8 +130,6 @@ class AzureCognitiveServices {
       ],
       'body' => fopen($file, 'rb'),
     ]);
-
-    echo $response->getBody();
     return json_decode((string) $response->getBody());
   }
 
