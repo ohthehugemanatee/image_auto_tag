@@ -2,16 +2,15 @@
 declare(strict_types = 1);
 /**
 * @file
-* Procedural code for media_ai_tag module.
+* Procedural code for media_auto_tag module.
 */
 
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\media\MediaInterface;
 use Drupal\Core\Form\FormStateInterface;
-
-/**
- * Implements hook_form_alter().
- */
+use Drupal\media_auto_tag\AzureCognitiveServices;
+use Drupal\media_auto_tag\Entity\PersonMap;
+use GuzzleHttp\Exception\TransferException;
 
 /**
  * Implements hook_form_FORM_ID_alter().
@@ -75,119 +74,92 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
  * Implements hook_entity_insert().
  */
 function media_auto_tag_entity_insert(EntityInterface $entity) {
-  // If the entity is our "people" entity, submit the faces and initiate training.
-  // If the entity has a field that should have face detection performed, submit images and tag.
-}
-
-/**
- * Implements hook_ENTITY_TYPE_insert().
- *
- * {@inheritdoc}
- *
- * @throws \Drupal\Core\Entity\EntityStorageException
- *   If we fail to save the entity tags.
- */
-function media_auto_tag_media_insert(MediaInterface $media) {
-  $allowedBundles = [
-    'video',
-    'image',
-  ];
-  if (in_array($media->bundle(), $allowedBundles, TRUE)) {
-    // Get the tags for the entity.
-    $tags = _media_auto_tag_process_entity($media);
-    if (!empty($tags)) {
-      // Apply the tags for the entity.
-      //_media_auto_tag_apply_tags($media, $tags);
-    }
+  if (!($entity instanceof ContentEntityInterface)) {
+    return;
   }
-}
-
-/**
- * Implements hook_ENTITY_TYPE_update().
- *
- * {@inheritdoc}
- *
- * @throws \Drupal\Core\Entity\EntityStorageException
- */
-function media_auto_tag_media_update(MediaInterface $media) {
-  // If the file has changed.
-  $source_field_name = $media->getSource()->getConfiguration()['source_field'];
-  $current_items = $media->get($source_field_name);
-  if (isset($media->original) && !$current_items->equals($media->original->get($source_field_name))) {
-    // Get the tags for the entity.
-    $tags = _media_auto_tag_process_entity($media);
-    if (!empty($tags)) {
-      // Apply the tags for the entity.
-      //_media_auto_tag_apply_tags($media, $tags);
-    }
-  }
-}
-
-/**
- * Process entity content to generate tags.
- *
- * @param \Drupal\media\MediaInterface $media
- *   The media entity to be processed.
- *
- * @return array
- *   The tags generated from the media item.
- */
-function _media_auto_tag_process_entity(MediaInterface $media) : array {
-  // Get the file itself.
-  $sourceFieldName = $media->getSource()->getConfiguration()['source_field'];
-  /** @var \Drupal\Core\Field\FieldItemList $currentItems */
-  $currentItems = $media->get($sourceFieldName);
-  if (!$currentItems->isEmpty()) {
-    $tagsResult = [];
-    foreach ($currentItems as $delta => $currentItem) {
-      $allowedTypes = [
-        'video',
-      ];
-      // If the file is an appropriate type.
-      if (in_array($currentItems->getDataDefinition()
-        ->getDataType(), $allowedTypes, FALSE)) {
-        // Add to the results array.
-        $tagsResult[$delta] = _media_auto_tag_get_tags($file);
+  // If the entity is our "people" entity, submit faces and initiate training.
+  $config = \Drupal::config('media_auto_tag.settings');
+  // Check entity type and bundle.
+  $targetEntityBundleString = $config->get('person_entity_bundle');
+  list($targetEntityType, $targetEntityBundle) = explode('.', $targetEntityBundleString);
+  if ($entity->getEntityTypeId() === $targetEntityType && $entity->bundle() === $targetEntityBundle) {
+    /** @var \Drupal\media_auto_tag\AzureCognitiveServices $azure */
+    $azure = \Drupal::service('media_auto_tag.azure');
+    // Check availability of the service.
+    if ($azure->serviceStatus()) {
+      // Create the Person record.
+      $person = $azure->createPerson(AzureCognitiveServices::PEOPLE_GROUP, $entity->label());
+      $personId = $person->personId;
+      // Create the personMap record.
+      PersonMap::create([
+        'foreign_id' => $personId,
+        'local_id' => $entity->id(),
+        'local_entity_type' => $entity->getEntityTypeId(),
+      ])->save();
+      // Submit each value on the image field as a "face".
+      $targetImageField = explode('.', $config->get('person_image_field'))[1];
+      foreach ($entity->get($targetImageField)->getValue() as $index => $value) {
+        /** @var \Drupal\Core\Image\Image $image */
+        $image = $entity->get($targetImageField)->get($index);
+        $imagePath = $image->entity->getFileUri();
+        try {
+          $faceId = $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, $personId, $imagePath);
+          PersonMap::create([
+            'foreign_id' => $faceId,
+            'local_id' => $image->entity->id(),
+            'local_entity_type' => 'file',
+          ])->save();
+        }
+        catch (TransferException $e) {
+          \Drupal::messenger()->addWarning(t('Unable to submit face images to Azure for processing. Error: %code : %msg.',
+            [
+              '%code' => $e->getCode(),
+              '%msg' => $e->getMessage(),
+            ]
+          ));
+        }
       }
     }
-    return $tagsResult;
   }
-  return [];
+  // If the entity has a field that should have face detection performed, submit images and tag.
+  foreach ($entity->getFieldDefinitions() as $fieldDefinition) {
+    if ($fieldDefinition->getType() === 'image' && $fieldDefinition->getThirdPartySetting('media_auto_tag', 'detect_faces')) {
+      /** @var \Drupal\media_auto_tag\AzureCognitiveServices $azure */
+      $azure = \Drupal::service('media_auto_tag.azure');
+      // Check availability of the service.
+      if ($azure->serviceStatus()) {
+        $fileUri = $entity->{$fieldDefinition->getName()}->entity->getFileUri();
+        $detectedFaces = $azure->detectFaces($fileUri);
+        if (!empty($detectedFaces)) {
+          // Identify detected faces.
+          $facesToIdentify = [];
+          foreach ($detectedFaces as $detectedFace) {
+            $facesToIdentify[] = $detectedFace['faceId'];
+          }
+          $identifiedFaces = $azure->identifyFaces($detectedFaces, AzureCognitiveServices::PEOPLE_GROUP);
+          // Loop over the identified faces and tag with their Drupal entities.
+          $personIds = [];
+          foreach ($identifiedFaces as $identifiedFace) {
+            // Take the first candidate.
+            $personIds[] = $identifiedFace->candidates[0]->personId;
+          }
+          $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+            ->condition('foreign_id', $personIds, 'IN')
+            ->execute();
+          $personMaps = PersonMap::loadMultiple($personMapResult);
+          // Apply this as the target field value.
+          $targetTagField = $fieldDefinition->getThirdPartySetting('media_auto_tag', 'tag_field');
+          $entity->set($targetTagField, $personMaps);
+          $entity->save();
+        }
+      }
+    }
+  }
 }
+
 
 /**
- * Pass a file to the recognition/classification system.
- *
- * @return array
- *   An array of tags.
+ * Implements hook_entity_update().
  */
-function _media_auto_tag_get_tags() {
-  $tags = [];
-  $file = '/tmp/file.jpg';
-  $faceDetectionResult = _media_auto_tag_detect_faces($file);
-  // Pass the file to the recognition engine.
-  // Pass the result to the classification engine.
-  return $tags;
+function media_auto_tag_entity_update(EntityInterface $entity) {
 }
-
-
-/**
- * Apply an array of tags to a media object.
- *
- * @param \Drupal\media\MediaInterface $media
- *   The source Media entity.
- * @param array $tags
- *   The tags to be applied.
- *
- * @return int
- *   SAVED_NEW or SAVED_UPDATED is returned depending on the operation.
- *
- * @throws \Drupal\Core\Entity\EntityStorageException
- *   In case of failures, an exception is thrown.
- */
-function _media_auto_tag_apply_tags(MediaInterface $media, array $tags) {
-  // Get the mapping for tags:fields.
-  // Apply the mapping.
-  return $media->save();
-}
-

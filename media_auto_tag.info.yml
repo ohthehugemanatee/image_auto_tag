@@ -1,8 +1,8 @@
 name: Media Auto Tag
 type: module
-description: 'AI/ML integration for the Drupal media module, to automatically tag your media files'
+description: 'AI/ML integration for the Drupal image module, to automatically tag your image files'
 core: 8.x
 dependencies:
-  - drupal:media
+  - image
 
 configure: media_auto_tag.settings

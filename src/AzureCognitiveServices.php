@@ -17,6 +17,8 @@ use GuzzleHttp\Exception\TransferException;
  */
 class AzureCognitiveServices {
 
+  const PEOPLE_GROUP = 'drupal_media_auto_tag_people';
+
   /**
    * The HTTP client.
    *
@@ -25,18 +27,18 @@ class AzureCognitiveServices {
   protected $httpClient;
 
   /**
-   * HTTP Client Factory.
-   *
-   * @var \Drupal\Core\Http\ClientFactory
-   */
-  protected $clientFactory;
-
-  /**
    * The applied configuration.
    *
    * @var \Drupal\Core\Config\ImmutableConfig
    */
   protected $config;
+
+  /**
+   * The service status using the current config.
+   *
+   * @var bool
+   */
+  protected $status;
 
   /**
    * AzureCognitiveServices constructor.
@@ -83,6 +85,25 @@ class AzureCognitiveServices {
         ],
       ]);
     return $response->getStatusCode() === 200;
+  }
+
+  /**
+   * Check status of the current configuration.
+   *
+   * @return bool
+   *   TRUE on valid, FALSE on invalid.
+   */
+  public function serviceStatus() : bool {
+    if ($this->status === NULL) {
+      try {
+        $response = $this->httpClient->request('GET', 'persongroups');
+        $statusCode = $response->getStatusCode();
+      } catch (TransferException $e) {
+        $statusCode = $e->getCode();
+      }
+      $this->status = ($statusCode === 200);
+    }
+    return $this->status;
   }
 
   /**
