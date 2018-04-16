@@ -8,7 +8,61 @@ declare(strict_types = 1);
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\media\MediaInterface;
 use GuzzleHttp\Exception\ClientException;
+use Drupal\Core\Form\FormStateInterface;
 
+/**
+ * Implements hook_form_alter().
+ */
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Add a setting for face detection on image fields.
+ */
+function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  /** @var \Drupal\field\FieldConfigInterface $entity */
+  $entity = $form_state->getFormObject()->getEntity();
+  if ($entity->getFieldStorageDefinition()->getType() === 'image') {
+    $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
+      '#type' => 'checkbox',
+      '#title' => t('Detect faces in uploaded images'),
+      '#description' => t('Submit images for face detection using Media Auto Tag module.'),
+      '#default_value' => $entity->getThirdPartySetting('media_auto_tag', 'detect_faces'),
+    ];
+    // Build a list of entity reference fields pointing to the right type.
+    $tagFieldOptions = [];
+    // Look up "the right type" in config.
+    $targetEntityBundleString = \Drupal::config('media_auto_tag.settings')->get('person_entity_bundle');
+    list($targetEntityType, $targetEntityBundle) = explode('.', $targetEntityBundleString);
+    $fieldInstances = \Drupal::service('entity_field.manager')->getFieldDefinitions($entity->getTargetEntityTypeId(), $entity->getTargetBundle());
+    foreach ($fieldInstances as $fieldName => $fieldInstance) {
+      // If it's an entity reference pointing at the right type.
+      if ($fieldInstance->getType() === 'entity_reference' && $fieldInstance->getSettings()['target_type'] === $targetEntityType) {
+        $tagFieldOptions[$fieldName] = $fieldName;
+      }
+    }
+    if ($tagFieldOptions === []) {
+      $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
+        '#description' => t('Submit images for face detection using Media Auto Tag module.  No entity reference field found on this bundle, which references the "people" type defined in settings. Please check your settings for media_auto_tag and try again.'),
+        '#disabled' => TRUE,
+      ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
+    }
+    else {
+      $form['third_party_settings']['media_auto_tag']['tag_field'] = [
+        '#title' => t('Tag field'),
+        '#description' => t('The field which will receive tags based on face recognition. Manual entries into this field will be overwritten when detection is performed!'),
+        '#type' => 'select',
+        '#options' => $tagFieldOptions,
+        '#default_value' => $entity->getThirdPartySetting('media_auto_tag', 'tag_field'),
+        '#states' => [
+          'visible' => [
+            ':input[name="third_party_settings[media_auto_tag][detect_faces]"]' => ['checked' => TRUE],
+          ],
+        ],
+      ];
+    }
+  }
+}
 
 function media_auto_tag_test(string $action) {
   /** @var \Drupal\media_auto_tag\AzureCognitiveServices $service */
