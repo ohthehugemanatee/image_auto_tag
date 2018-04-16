@@ -153,6 +153,14 @@ class SettingsForm extends ConfigFormBase {
       '#options' => $imageFieldOptions,
       '#default_value' => $config->get('person_image_field'),
     ];
+    // @todo: asynchronous mode.
+    $form['synchronous'] = [
+      '#title' => t('Synchronous mode'),
+      '#type' => 'checkbox',
+      '#description' => t('Submit images for processing as soon as they are saved in Drupal. This will potentially slow down the editor process, as the "save" button has to upload the image to another service and get a response back. When disabled, everything is done on cron instead. It is recommended to keep this checkbox DISABLED on production systems.'),
+      '#default_value' => TRUE,
+      '#disabled' => TRUE,
+    ];
     return parent::buildForm($form, $form_state);
   }
 
@@ -166,6 +174,7 @@ class SettingsForm extends ConfigFormBase {
       ->set('azure_service_key', $values['azure_service_key'])
       ->set('person_entity_bundle', $values['person_entity_bundle'])
       ->set('person_image_field', $values['person_image_field'])
+      ->set('synchronous', $values['synchronous'])
       ->save();
 
     parent::submitForm($form, $form_state);

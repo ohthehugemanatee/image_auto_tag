@@ -7,7 +7,6 @@ declare(strict_types = 1);
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\media\MediaInterface;
-use GuzzleHttp\Exception\ClientException;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
@@ -64,17 +63,12 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
   }
 }
 
-function media_auto_tag_test(string $action) {
-  /** @var \Drupal\media_auto_tag\AzureCognitiveServices $service */
-  $service = \Drupal::service('media_auto_tag.azure');
-  switch ($action) {
-    case 'listPersonGroups':
-      return $service->listPersonGroups();
-
-    case 'detectFaces':
-      return $service->detectFaces('/tmp/detect-faces.jpg');
-
-  }
+/**
+ * Implements hook_entity_insert().
+ */
+function media_auto_tag_entity_insert(EntityInterface $entity) {
+  // If the entity is our "people" entity, submit the faces and initiate training.
+  // If the entity has a field that should have face detection performed, submit images and tag.
 }
 
 /**

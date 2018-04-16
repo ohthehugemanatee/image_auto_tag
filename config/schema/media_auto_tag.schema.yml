@@ -16,3 +16,6 @@ media_auto_tag.settings:
     person_image_field:
       type: string
       label: 'Person image field'
+    synchronous:
+      type: boolean
+      label: 'Synchronous mode'
