@@ -28,6 +28,14 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
       '#description' => t('Submit images for face detection using Media Auto Tag module.'),
       '#default_value' => $entity->getThirdPartySetting('media_auto_tag', 'detect_faces'),
     ];
+    // If the module isn't configured yet.
+    if (\Drupal::config('media_auto_tag.settings')->get('person_entity_bundle') === NULL) {
+      $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
+        '#description' => t('Submit images for face detection using Media Auto Tag module.  You must configure the module before you can use it!'),
+        '#disabled' => TRUE,
+      ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
+      return;
+    }
     // Build a list of entity reference fields pointing to the right type.
     $tagFieldOptions = [];
     // Look up "the right type" in config.
