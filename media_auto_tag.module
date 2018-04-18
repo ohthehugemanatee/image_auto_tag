@@ -197,6 +197,27 @@ function media_auto_tag_entity_update(EntityInterface $entity) {
 }
 
 /**
+ * Implements hook_entity_delete().
+ *
+ * Clean up when a mapped entity is deleted.
+ */
+function media_auto_tag_entity_delete(EntityInterface $entity) {
+  if ($entity instanceof ContentEntityInterface) {
+    $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+      ->condition('local_id', $entity->id())
+      ->condition('local_entity_type', $entity->getEntityTypeId())
+      ->execute();
+    if ($personMapResult > 0) {
+      /** @var \Drupal\media_auto_tag\Entity\PersonMap $personMaps */
+      $personMaps = PersonMap::loadMultiple($personMapResult);
+      foreach ($personMaps as $personMap) {
+        $personMap->delete();
+      }
+    }
+  }
+}
+
+/**
  * Submit faces for an entity.
  *
  * @param \Drupal\Core\Entity\ContentEntityInterface $entity
