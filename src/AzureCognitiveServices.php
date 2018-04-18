@@ -231,6 +231,30 @@ class AzureCognitiveServices {
   }
 
   /**
+   * Get information for a specific person.
+   *
+   * @param string $personGroupId
+   *   The desired person's PersonGroup Id.
+   * @param string $personId
+   *   The desired person's Person Id.
+   *
+   * @return \stdClass
+   *   The returned data from Azure. An array with keys:
+   *    - personId: (string) the personId of the retrieved person.
+   *    - persistedFaceIds: (array) persistedFaceIds of registered Faces in the
+   *      person.
+   *    - name: (string) The Person's display name.
+   *    - userData (string) Any user-provided data attached to the person.
+   *
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   *   If anything goes wrong with the HTTP request.
+   */
+  public function getPerson(string $personGroupId, string $personId) : \stdClass {
+    $response = $this->httpClient->request('GET', 'persongroups/' . $personGroupId . '/persons/' . $personId);
+    return json_decode((string) $response->getBody());
+  }
+
+  /**
    * Update an existing person.
    *
    * @param string $personGroupId
@@ -299,8 +323,30 @@ class AzureCognitiveServices {
         'body' => fopen($file, 'rb'),
       ]);
 
-    echo $response->getBody();
     return json_decode((string) $response->getBody());
+  }
+
+  /**
+   * Delete a face from a person record.
+   *
+   * @param string $personGroupId
+   *   The person's personGroupId.
+   * @param string $personId
+   *   The person's personId.
+   * @param string $faceId
+   *   The persisted Id of the face to delete.
+   *
+   * @return string
+   *   The face Id if successful, empty if not.
+   *
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   *   If anything goes wrong with the HTTP request.
+   */
+  public function deleteFace(string $personGroupId, string $personId, string $faceId) {
+    $response = $this->httpClient->request('POST',
+      "persongroups/{$personGroupId}/persons/{$personId}/persistedFaces/{$faceId}");
+
+    return empty($response->getBody());
   }
 
   /**
