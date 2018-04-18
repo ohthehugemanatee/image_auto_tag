@@ -101,7 +101,7 @@ class PersonMap extends ContentEntityBase implements PersonMapInterface {
    * {@inheritdoc}
    */
   public function getForeignId(): string {
-    return $this->get('foreign_id')->value;
+    return $this->get('foreign_id')->getString();
   }
 
   /**
@@ -116,7 +116,7 @@ class PersonMap extends ContentEntityBase implements PersonMapInterface {
    * {@inheritdoc}
    */
   public function getLocalId(): string {
-    return $this->get('local_id');
+    return $this->get('local_id')->getString();
   }
 
   /**
@@ -131,7 +131,7 @@ class PersonMap extends ContentEntityBase implements PersonMapInterface {
    * {@inheritdoc}
    */
   public function getLocalEntityTypeId(): string {
-    return $this->get('local_entity_type');
+    return $this->get('local_entity_type')->getString();
   }
 
   /**

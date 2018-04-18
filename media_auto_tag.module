@@ -136,20 +136,27 @@ function media_auto_tag_entity_insert(EntityInterface $entity) {
           foreach ($detectedFaces as $detectedFace) {
             $facesToIdentify[] = $detectedFace->faceId;
           }
-          $identifiedFaces = $azure->identifyFaces(array_slice($detectedFaces, 0, 10), AzureCognitiveServices::PEOPLE_GROUP);
+          $identifiedFaces = $azure->identifyFaces(array_slice($facesToIdentify, 0, 10), AzureCognitiveServices::PEOPLE_GROUP);
           // Loop over the identified faces and tag with their Drupal entities.
           $personIds = [];
           foreach ($identifiedFaces as $identifiedFace) {
             // Take the first candidate.
-            $personIds[] = $identifiedFace->candidates[0]->personId;
+            if ($identifiedFace->candidates !== []) {
+              $personIds[] = $identifiedFace->candidates[0]->personId;
+            }
           }
           $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
             ->condition('foreign_id', $personIds, 'IN')
             ->execute();
+          /* @var PersonMap[] $personMaps */
           $personMaps = PersonMap::loadMultiple($personMapResult);
+          $peopleEntities = [];
+          foreach ($personMaps as $personMap) {
+            $peopleEntities[] = $personMap->getLocalEntity();
+          }
           // Apply this as the target field value.
           $targetTagField = $fieldDefinition->getThirdPartySetting('media_auto_tag', 'tag_field');
-          $entity->set($targetTagField, $personMaps);
+          $entity->set($targetTagField, $peopleEntities);
           $entity->save();
         }
       }
