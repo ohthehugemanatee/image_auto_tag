@@ -1,9 +1,9 @@
 <?php
 declare(strict_types = 1);
 /**
-* @file
-* Procedural code for media_auto_tag module.
-*/
+ * @file
+ * Procedural code for media_auto_tag module.
+ */
 
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityInterface;
@@ -30,9 +30,9 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
     // If the module isn't configured yet.
     if (\Drupal::config('media_auto_tag.settings')->get('person_entity_bundle') === NULL) {
       $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
-        '#description' => t('Submit images for face detection using Media Auto Tag module.  You must configure the module before you can use it!'),
-        '#disabled' => TRUE,
-      ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
+          '#description' => t('Submit images for face detection using Media Auto Tag module.  You must configure the module before you can use it!'),
+          '#disabled' => TRUE,
+        ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
       return;
     }
     // Build a list of entity reference fields pointing to the right type.
@@ -49,9 +49,9 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
     }
     if ($tagFieldOptions === []) {
       $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
-        '#description' => t('Submit images for face detection using Media Auto Tag module.  No entity reference field found on this bundle, which references the "people" type defined in settings. Please check your settings for media_auto_tag and try again.'),
-        '#disabled' => TRUE,
-      ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
+          '#description' => t('Submit images for face detection using Media Auto Tag module.  No entity reference field found on this bundle, which references the "people" type defined in settings. Please check your settings for media_auto_tag and try again.'),
+          '#disabled' => TRUE,
+        ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
     }
     else {
       $form['third_party_settings']['media_auto_tag']['tag_field'] = [
@@ -164,9 +164,90 @@ function media_auto_tag_entity_insert(EntityInterface $entity) {
   }
 }
 
-
 /**
  * Implements hook_entity_update().
  */
 function media_auto_tag_entity_update(EntityInterface $entity) {
+  if (!($entity instanceof ContentEntityInterface)) {
+    return;
+  }
+  // If the entity is our "people" entity, submit faces and initiate training.
+  $config = \Drupal::config('media_auto_tag.settings');
+  // Check entity type and bundle.
+  $targetEntityBundleString = $config->get('person_entity_bundle');
+  list($targetEntityType, $targetEntityBundle) = explode('.', $targetEntityBundleString);
+  if ($entity->getEntityTypeId() === $targetEntityType && $entity->bundle() === $targetEntityBundle) {
+    /** @var \Drupal\media_auto_tag\AzureCognitiveServices $azure */
+    $azure = \Drupal::service('media_auto_tag.azure');
+    // Check availability of the service.
+    if ($azure->serviceStatus()) {
+      // Do we have a person record yet?
+      $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+        ->condition('local_id', $entity->id())
+        ->condition('local_entity_type', $entity->getEntityTypeId())
+        ->execute();
+      // If we don't have a record, create one on Azure.
+      if ($personMapResult === []) {
+        media_auto_tag_entity_insert($entity);
+      }
+      else {
+        // Otherwise, update the existing Person on Azure.
+        if ($entity->label() !== $entity->original->label()) {
+          /** @var PersonMap[] $personMaps */
+          $personMaps = PersonMap::loadMultiple($personMapResult);
+          $personMap = reset($personMaps);
+          $azure->updatePerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $entity->label());
+        }
+
+        // If the faces image field value has changed.
+        // Get the person record from Azure
+        // check the foreign IDs listed for faces. See if any have been deleted.
+        // Check the IDs against PersonMap entries, see if they're all there.
+        // Any new file Ids should be added as faces.
+        // Consider: doing this all on entity_insert or entity_update for the file entity.
+
+      }
+    }
+  }
+  // If the entity has a field that should have face detection performed, submit images and tag.
+  foreach ($entity->getFieldDefinitions() as $fieldDefinition) {
+    if ($fieldDefinition->getType() === 'image' && $fieldDefinition->getThirdPartySetting('media_auto_tag', 'detect_faces')) {
+      /** @var \Drupal\media_auto_tag\AzureCognitiveServices $azure */
+      $azure = \Drupal::service('media_auto_tag.azure');
+      // Check availability of the service.
+      if ($azure->serviceStatus()) {
+        $fileUri = $entity->{$fieldDefinition->getName()}->entity->getFileUri();
+        $detectedFaces = $azure->detectFaces($fileUri);
+        if (!empty($detectedFaces)) {
+          // Identify detected faces.
+          $facesToIdentify = [];
+          foreach ($detectedFaces as $detectedFace) {
+            $facesToIdentify[] = $detectedFace->faceId;
+          }
+          $identifiedFaces = $azure->identifyFaces(array_slice($facesToIdentify, 0, 10), AzureCognitiveServices::PEOPLE_GROUP);
+          // Loop over the identified faces and tag with their Drupal entities.
+          $personIds = [];
+          foreach ($identifiedFaces as $identifiedFace) {
+            // Take the first candidate.
+            if ($identifiedFace->candidates !== []) {
+              $personIds[] = $identifiedFace->candidates[0]->personId;
+            }
+          }
+          $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+            ->condition('foreign_id', $personIds, 'IN')
+            ->execute();
+          /* @var PersonMap[] $personMaps */
+          $personMaps = PersonMap::loadMultiple($personMapResult);
+          $peopleEntities = [];
+          foreach ($personMaps as $personMap) {
+            $peopleEntities[] = $personMap->getLocalEntity();
+          }
+          // Apply this as the target field value.
+          $targetTagField = $fieldDefinition->getThirdPartySetting('media_auto_tag', 'tag_field');
+          $entity->set($targetTagField, $peopleEntities);
+          $entity->save();
+        }
+      }
+    }
+  }
 }

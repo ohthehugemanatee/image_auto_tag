@@ -231,6 +231,31 @@ class AzureCognitiveServices {
   }
 
   /**
+   * Update an existing person.
+   *
+   * @param string $personGroupId
+   *   The Id of the personGroup to which the Person belongs.
+   * @param string $personId
+   *   The Id of the Person to update.
+   * @param string $name
+   *   The new name of the Person.
+   *
+   * @return bool
+   *   TRUE on success, throws an exception on failure.
+   *
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   *   All errors are reported as Guzzle exceptions.
+   */
+  public function updatePerson(string $personGroupId, string $personId, string $name) {
+    $response = $this->httpClient->request('PATCH', 'persongroups/' . $personGroupId . '/persons/' . $personId, [
+      'body' => json_encode([
+        'name' => $name,
+      ]),
+    ]);
+    return $response->getStatusCode() === 200;
+  }
+
+  /**
    * List people in a personGroup.
    *
    * @param string $personGroupId
