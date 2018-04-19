@@ -79,6 +79,7 @@ function media_auto_tag_entity_insert(EntityInterface $entity) {
     return;
   }
   $config = \Drupal::config('media_auto_tag.settings');
+  $processed = FALSE;
   // Check entity type and bundle.
   $targetEntityBundleString = $config->get('person_entity_bundle');
   list($targetEntityType, $targetEntityBundle) = explode('.', $targetEntityBundleString);
@@ -90,8 +91,19 @@ function media_auto_tag_entity_insert(EntityInterface $entity) {
   // If the entity has a field that should have face detection performed, submit images and tag.
   foreach ($entity->getFieldDefinitions() as $fieldDefinition) {
     if ($fieldDefinition->getType() === 'image' && $fieldDefinition->getThirdPartySetting('media_auto_tag', 'detect_faces')) {
-      _media_do_face_detection($entity, $fieldDefinition);
+      $peopleEntities = _media_do_face_detection($entity, $fieldDefinition);
+      if (!empty($peopleEntities)) {
+        // Apply this as the target field value.
+        $targetTagField = $fieldDefinition->getThirdPartySetting('media_auto_tag', 'tag_field');
+        $entity->set($targetTagField, $peopleEntities);
+        $processed = TRUE;
+      }
+      $count = count($peopleEntities);
+      \Drupal::messenger()->addStatus("Detected {$count} faces.");
     }
+  }
+  if ($processed) {
+    $entity->save();
   }
 }
 
@@ -299,6 +311,9 @@ function _media_create_faces(ContentEntityInterface $entity) {
  * @param \Drupal\Core\Field\FieldDefinitionInterface $fieldDefinition
  *   The target image field.
  *
+ * @return array
+ *   An array of the people entities whose faces were detected.
+ *
  * @throws \Drupal\Core\Entity\EntityStorageException
  * @throws \GuzzleHttp\Exception\GuzzleException
  */
@@ -316,6 +331,9 @@ function _media_do_face_detection(EntityInterface $entity, FieldDefinitionInterf
         $facesToIdentify[] = $detectedFace->faceId;
       }
       $identifiedFaces = $azure->identifyFaces(array_slice($facesToIdentify, 0, 10), AzureCognitiveServices::PEOPLE_GROUP);
+      if (empty($identifiedFaces)) {
+        return [];
+      }
       // Loop over the identified faces and tag with their Drupal entities.
       $personIds = [];
       foreach ($identifiedFaces as $identifiedFace) {
@@ -333,10 +351,7 @@ function _media_do_face_detection(EntityInterface $entity, FieldDefinitionInterf
       foreach ($personMaps as $personMap) {
         $peopleEntities[] = $personMap->getLocalEntity();
       }
-      // Apply this as the target field value.
-      $targetTagField = $fieldDefinition->getThirdPartySetting('media_auto_tag', 'tag_field');
-      $entity->set($targetTagField, $peopleEntities);
-      $entity->save();
+      return $peopleEntities;
     }
   }
 }
