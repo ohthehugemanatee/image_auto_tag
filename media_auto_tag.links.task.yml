@@ -2,11 +2,7 @@ media_auto_tag.settings:
   title: Settings
   route_name: media_auto_tag.settings
   base_route: media_auto_tag.settings
-media_auto_tag.train:
-  title: Train
-  route_name: media_auto_tag.train
-  base_route: media_auto_tag.settings# Person map routing definition
-media_auto_tag_person_map.settings_tab:
-  route_name: media_auto_tag_person_map.settings
-  title: 'Settings'
-  base_route: media_auto_tag_person_map.settings
+media_auto_tag.operations:
+  title: Operations
+  route_name: media_auto_tag.operations
+  base_route: media_auto_tag.settings

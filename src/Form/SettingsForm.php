@@ -96,12 +96,6 @@ class SettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
     $config = $this->config('media_auto_tag.settings');
 
-    $trainingStatus = $this->azure->getPersonGroupTrainingStatus(AzureCognitiveServices::PEOPLE_GROUP);
-    $form['training_status'] = [
-      '#title' => t('Training status'),
-      '#type' => 'item',
-      '#description' => (string) $trainingStatus->status,
-    ];
     $form['azure_endpoint'] = [
       '#title' => t('Azure endpoint'),
       '#description' => t('The Media Services endpoint you want to use.'),
@@ -168,22 +162,7 @@ class SettingsForm extends ConfigFormBase {
       '#disabled' => TRUE,
     ];
 
-
-    $form['train'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Train now'),
-      '#name' => 'train',
-      '#submit' => [[$this, 'train']],
-    ];
     return parent::buildForm($form, $form_state);
-  }
-
-  /**
-   * Submit handler for the "Train" button.
-   */
-  public function train(array &$form, FormStateInterface $form_state) {
-    $this->azure->trainPersonGroup(AzureCognitiveServices::PEOPLE_GROUP);
-    $this->messenger()->addStatus('Training request submitted.');
   }
 
   /**
@@ -198,8 +177,41 @@ class SettingsForm extends ConfigFormBase {
       ->set('person_image_field', $values['person_image_field'])
       ->set('synchronous', $values['synchronous'])
       ->save();
+    
+    $this->validateAzureResource();
 
     parent::submitForm($form, $form_state);
+  }
+
+  /**
+   * Validate that the Azure cognitive service responds and has our group.
+   *
+   * @return bool
+   *   TRUE if the Azure resource is responding and has the Person Group.
+   */
+  protected function validateAzureResource() : bool {
+    try {
+      $personGroups = $this->azure->listPersonGroups();
+    }
+    catch (TransferException $e) {
+      $this->messenger()->addError('Could not connect with this endpoint and API key. Error: ' . $e->getMessage());
+      return FALSE;
+    }
+
+    // If our personGroup doesn't exist yet.
+    $personGroup = array_filter($personGroups, function ($group) {
+      return $group->personGroupId === self::PEOPLE_GROUP;
+    });
+    if ($personGroup === []) {
+      try {
+        $this->azure->createPersonGroup(self::PEOPLE_GROUP, 'Automatically created group for Drupal media auto tag module.');
+      }
+      catch (TransferException $e) {
+        $this->messenger()->addError('Could not create the Drupal People group. Error: ' . $e->getMessage());
+        return FALSE;
+      }
+    }
+    return TRUE;
   }
 
   /**
