@@ -75,7 +75,7 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
  * Implements hook_entity_insert().
  */
 function media_auto_tag_entity_insert(EntityInterface $entity) {
-  if (!($entity instanceof ContentEntityInterface)) {
+  if (!($entity instanceof ContentEntityInterface) || $entity instanceof PersonMap) {
     return;
   }
   $config = \Drupal::config('media_auto_tag.settings');
@@ -280,6 +280,9 @@ function _media_create_faces(ContentEntityInterface $entity) {
   $personId = $personMap->getForeignId();
   /** @var \Drupal\media_auto_tag\AzureCognitiveServices $azure */
   $azure = \Drupal::service('media_auto_tag.azure');
+  if (!$azure->serviceStatus()) {
+    return;
+  }
   foreach ($entity->get($targetImageField)->getValue() as $index => $value) {
     /** @var \Drupal\Core\Image\Image $image */
     $image = $entity->get($targetImageField)->get($index);
