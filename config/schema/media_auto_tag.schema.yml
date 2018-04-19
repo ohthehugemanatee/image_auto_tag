@@ -19,3 +19,13 @@ media_auto_tag.settings:
     synchronous:
       type: boolean
       label: 'Synchronous mode'
+field.field.*.*.*.third_party.media_auto_tag:
+  type: mapping
+  label: 'Media Auto Tag'
+  mapping:
+    detect_faces:
+      type: boolean
+      label: 'Whether to enable face detection/recognition on this field'
+    tag_field:
+      type: string
+      label: 'field to tag'
