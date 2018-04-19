@@ -1,0 +1,5 @@
+image_auto_tag.settings:
+  title: 'Image Auto Tag'
+  description: 'Administrative settings for the Image Auto Tag module.'
+  route_name: image_auto_tag.settings
+  parent: 'system.admin_config_media'

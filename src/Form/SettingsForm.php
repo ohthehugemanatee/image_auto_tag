@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Drupal\media_auto_tag\Form;
+namespace Drupal\image_auto_tag\Form;
 
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -10,7 +10,7 @@ use Drupal\Core\Entity\ContentEntityType;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
-use Drupal\media_auto_tag\AzureCognitiveServices;
+use Drupal\image_auto_tag\AzureCognitiveServices;
 use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,7 +24,7 @@ class SettingsForm extends ConfigFormBase {
   /**
    * CogSer service.
    *
-   * @var \Drupal\media_auto_tag\AzureCognitiveServices
+   * @var \Drupal\image_auto_tag\AzureCognitiveServices
    */
   protected $azure;
 
@@ -47,7 +47,7 @@ class SettingsForm extends ConfigFormBase {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   Config factory service.
-   * @param \Drupal\media_auto_tag\AzureCognitiveServices $azureCognitiveServices
+   * @param \Drupal\image_auto_tag\AzureCognitiveServices $azureCognitiveServices
    *   Azure CogSer service.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   Entity Type Manager service.
@@ -68,7 +68,7 @@ class SettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('media_auto_tag.azure'),
+      $container->get('image_auto_tag.azure'),
       $container->get('entity_type.manager'),
       $container->get('entity_field.manager')
     );
@@ -78,7 +78,7 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function getFormId() {
-    return 'media_auto_tag_settings';
+    return 'image_auto_tag_settings';
   }
 
   /**
@@ -86,7 +86,7 @@ class SettingsForm extends ConfigFormBase {
    */
   protected function getEditableConfigNames() {
     return [
-      'media_auto_tag.settings',
+      'image_auto_tag.settings',
     ];
   }
 
@@ -94,7 +94,7 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
-    $config = $this->config('media_auto_tag.settings');
+    $config = $this->config('image_auto_tag.settings');
 
     $form['azure_endpoint'] = [
       '#title' => t('Azure endpoint'),
@@ -170,7 +170,7 @@ class SettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $values = $form_state->getValues();
-    $this->config('media_auto_tag.settings')
+    $this->config('image_auto_tag.settings')
       ->set('azure_endpoint', $values['azure_endpoint'])
       ->set('azure_service_key', $values['azure_service_key'])
       ->set('person_entity_bundle', $values['person_entity_bundle'])
@@ -204,7 +204,7 @@ class SettingsForm extends ConfigFormBase {
     });
     if ($personGroup === []) {
       try {
-        $this->azure->createPersonGroup(AzureCognitiveServices::PEOPLE_GROUP, 'Automatically created group for Drupal media auto tag module.');
+        $this->azure->createPersonGroup(AzureCognitiveServices::PEOPLE_GROUP, 'Automatically created group for Drupal Image Auto Tag module.');
       }
       catch (TransferException $e) {
         $this->messenger()->addError('Could not create the Drupal People group. Error: ' . $e->getMessage());

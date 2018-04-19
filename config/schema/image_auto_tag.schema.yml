@@ -1,8 +1,8 @@
-# Schema for the configuration files of the media_auto_tag module.
+# Schema for the configuration files of the image_auto_tag module.
 
-media_auto_tag.settings:
+image_auto_tag.settings:
   type: config_object
-  label: 'Media Auto Tag settings'
+  label: 'Image Auto Tag settings'
   mapping:
     azure_endpoint:
       type: string
@@ -19,9 +19,9 @@ media_auto_tag.settings:
     synchronous:
       type: boolean
       label: 'Synchronous mode'
-field.field.*.*.*.third_party.media_auto_tag:
+field.field.*.*.*.third_party.image_auto_tag:
   type: mapping
-  label: 'Media Auto Tag'
+  label: 'Image Auto Tag'
   mapping:
     detect_faces:
       type: boolean

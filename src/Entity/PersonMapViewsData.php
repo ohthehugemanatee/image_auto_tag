@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\media_auto_tag\Entity;
+namespace Drupal\image_auto_tag\Entity;
 
 use Drupal\views\EntityViewsData;
 

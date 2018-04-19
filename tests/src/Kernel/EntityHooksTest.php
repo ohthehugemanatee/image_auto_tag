@@ -2,13 +2,13 @@
 
 declare(strict_types = 1);
 
-namespace Drupal\tests\media_auto_tag\Kernel;
+namespace Drupal\tests\image_auto_tag\Kernel;
 
 use Drupal\Core\Entity\EntityStorageException;
 use Drupal\field\Tests\EntityReference\EntityReferenceTestTrait;
 use Drupal\file\Entity\File;
 use Drupal\KernelTests\KernelTestBase;
-use Drupal\media_auto_tag\AzureCognitiveServices;
+use Drupal\image_auto_tag\AzureCognitiveServices;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
 use Drupal\Tests\image\Kernel\ImageFieldCreationTrait;
@@ -18,7 +18,7 @@ use Drupal\Tests\image\Kernel\ImageFieldCreationTrait;
  *
  * Tests the entity API integrations.
  *
- * @package Drupal\tests\media_auto_tag\Kernel
+ * @package Drupal\tests\image_auto_tag\Kernel
  */
 class EntityHooksTest extends KernelTestBase {
 
@@ -26,7 +26,7 @@ class EntityHooksTest extends KernelTestBase {
   use EntityReferenceTestTrait;
 
   protected static $modules = [
-    'media_auto_tag',
+    'image_auto_tag',
     'node',
     'image',
     'file',
@@ -43,7 +43,7 @@ class EntityHooksTest extends KernelTestBase {
     parent::setUp();
 
     $this->installEntitySchema('node');
-    $this->installEntitySchema('media_auto_tag_person_map');
+    $this->installEntitySchema('image_auto_tag_person_map');
     $this->installEntitySchema('user');
     $this->installEntitySchema('file');
     $this->installSchema('file', ['file_usage']);
@@ -68,11 +68,11 @@ class EntityHooksTest extends KernelTestBase {
     $this->createEntityReferenceField('node', 'article', 'field_people', 'Detected People', 'node');
     /** @var \Drupal\field\FieldConfigInterface $fieldConfig */
     $fieldConfig = $this->createImageField('field_image', 'article');
-    $fieldConfig->setThirdPartySetting('media_auto_tag', 'detect_faces', TRUE);
-    $fieldConfig->setThirdPartySetting('media_auto_tag', 'tag_field', 'field_people');
+    $fieldConfig->setThirdPartySetting('image_auto_tag', 'detect_faces', TRUE);
+    $fieldConfig->setThirdPartySetting('image_auto_tag', 'tag_field', 'field_people');
     $fieldConfig->save();
     // Create our configuration.
-    $GLOBALS['config']['media_auto_tag.settings'] = [
+    $GLOBALS['config']['image_auto_tag.settings'] = [
       'azure_endpoint' => 'https://example.com/endpoint/',
       'azure_service_key' => 'dummy_service_key',
       'person_entity_bundle' => 'node.person',
@@ -122,7 +122,7 @@ class EntityHooksTest extends KernelTestBase {
       ->willReturn($identifyReturn);
 
     $azureDummy = $azure->reveal();
-    $this->container->set('media_auto_tag.azure', $azureDummy);
+    $this->container->set('image_auto_tag.azure', $azureDummy);
 
   }
 
@@ -147,9 +147,9 @@ class EntityHooksTest extends KernelTestBase {
     // Check that personMaps were created.
     /** @var \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager */
     $entityTypeManager = $this->container->get('entity_type.manager');
-    $personMapStorage = $entityTypeManager->getStorage('media_auto_tag_person_map');
+    $personMapStorage = $entityTypeManager->getStorage('image_auto_tag_person_map');
     self::assertNotEmpty($person->id(), 'Node ID was empty.');
-    /** @var \Drupal\media_auto_tag\Entity\PersonMap[] $personMapForPerson */
+    /** @var \Drupal\image_auto_tag\Entity\PersonMap[] $personMapForPerson */
     $personMapForPerson = $personMapStorage->loadByProperties([
       'foreign_id' => 'dummy_person_id',
     ]);

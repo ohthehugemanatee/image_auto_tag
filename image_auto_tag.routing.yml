@@ -1,0 +1,15 @@
+image_auto_tag.settings:
+  path: '/admin/config/media/image_auto_tag'
+  defaults:
+    _form: '\Drupal\image_auto_tag\Form\SettingsForm'
+    _title: 'Image Auto Tag settings'
+  requirements:
+    _permission: 'administer site configuration'
+
+image_auto_tag.operations:
+  path: '/admin/config/media/image_auto_tag/operations'
+  defaults:
+    _form: '\Drupal\image_auto_tag\Form\OperationsForm'
+    _title: 'Image Auto Tag Operations'
+  requirements:
+    _permission: 'administer media'

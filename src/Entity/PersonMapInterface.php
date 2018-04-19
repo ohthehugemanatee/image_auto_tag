@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\media_auto_tag\Entity;
+namespace Drupal\image_auto_tag\Entity;
 
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityChangedInterface;
@@ -9,7 +9,7 @@ use Drupal\Core\Entity\EntityInterface;
 /**
  * Provides an interface for defining Person map entities.
  *
- * @ingroup media_auto_tag
+ * @ingroup image_auto_tag
  */
 interface PersonMapInterface extends ContentEntityInterface, EntityChangedInterface {
 
@@ -27,7 +27,7 @@ interface PersonMapInterface extends ContentEntityInterface, EntityChangedInterf
    * @param int $timestamp
    *   The Person map creation timestamp.
    *
-   * @return \Drupal\media_auto_tag\Entity\PersonMapInterface
+   * @return \Drupal\image_auto_tag\Entity\PersonMapInterface
    *   The called Person map entity.
    */
   public function setCreatedTime($timestamp) : PersonMapInterface;
@@ -46,7 +46,7 @@ interface PersonMapInterface extends ContentEntityInterface, EntityChangedInterf
    * @param string $foreignId
    *   The Person map creation timestamp.
    *
-   * @return \Drupal\media_auto_tag\Entity\PersonMapInterface
+   * @return \Drupal\image_auto_tag\Entity\PersonMapInterface
    *   The called Person Map entity.
    */
   public function setForeignId($foreignId) : PersonMapInterface;
@@ -65,7 +65,7 @@ interface PersonMapInterface extends ContentEntityInterface, EntityChangedInterf
    * @param string $localId
    *   The Id of the referenced Drupal entity.
    *
-   * @return \Drupal\media_auto_tag\Entity\PersonMapInterface
+   * @return \Drupal\image_auto_tag\Entity\PersonMapInterface
    *   The called Person Map entity.
    */
   public function setLocalId(string $localId) : PersonMapInterface;
@@ -84,7 +84,7 @@ interface PersonMapInterface extends ContentEntityInterface, EntityChangedInterf
    * @param string $entityTypeId
    *   The entity type Id of the referenced Drupal entity.
    *
-   * @return \Drupal\media_auto_tag\Entity\PersonMapInterface
+   * @return \Drupal\image_auto_tag\Entity\PersonMapInterface
    *   The called Person Map entity.
    */
   public function setLocalEntityTypeId(string $entityTypeId) : PersonMapInterface;

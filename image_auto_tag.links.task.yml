@@ -1,0 +1,8 @@
+image_auto_tag.settings:
+  title: Settings
+  route_name: image_auto_tag.settings
+  base_route: image_auto_tag.settings
+image_auto_tag.operations:
+  title: Operations
+  route_name: image_auto_tag.operations
+  base_route: image_auto_tag.settings

@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\media_auto_tag\Entity;
+namespace Drupal\image_auto_tag\Entity;
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
@@ -11,17 +11,17 @@ use Drupal\Core\Entity\EntityTypeInterface;
 /**
  * Defines the Person map entity.
  *
- * @ingroup media_auto_tag
+ * @ingroup image_auto_tag
  *
  * @ContentEntityType(
- *   id = "media_auto_tag_person_map",
+ *   id = "image_auto_tag_person_map",
  *   label = @Translation("Person map"),
  *   handlers = {
- *     "views_data" = "Drupal\media_auto_tag\Entity\PersonMapViewsData",
+ *     "views_data" = "Drupal\image_auto_tag\Entity\PersonMapViewsData",
  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
  *     "access" = "Drupal\Core\Entity\EntityAccessControlHandler",
  *   },
- *   base_table = "media_auto_tag_person_map",
+ *   base_table = "image_auto_tag_person_map",
  *   entity_keys = {
  *     "id" = "id",
  *     "foreign_id" = "foreign_id",
@@ -34,7 +34,7 @@ use Drupal\Core\Entity\EntityTypeInterface;
  *   links = {
  *   },
  *   permission_granularity = "entity_type",
- *   admin_permission = "administer media auto tag",
+ *   admin_permission = "administer Image Auto Tag",
  * )
  */
 class PersonMap extends ContentEntityBase implements PersonMapInterface {

@@ -2,12 +2,12 @@
 
 declare(strict_types = 1);
 
-namespace Drupal\media_auto_tag\Form;
+namespace Drupal\image_auto_tag\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
-use Drupal\media_auto_tag\AzureCognitiveServices;
+use Drupal\image_auto_tag\AzureCognitiveServices;
 use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -25,12 +25,12 @@ class OperationsForm extends FormBase {
     // This method intentionally left blank.
   }
 
-  const PEOPLE_GROUP = 'drupal_media_auto_tag_people';
+  const PEOPLE_GROUP = 'drupal_image_auto_tag_people';
 
   /**
    * CogSer service.
    *
-   * @var \Drupal\media_auto_tag\AzureCognitiveServices
+   * @var \Drupal\image_auto_tag\AzureCognitiveServices
    */
   protected $azure;
 
@@ -46,7 +46,7 @@ class OperationsForm extends FormBase {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   Config factory service.
-   * @param \Drupal\media_auto_tag\AzureCognitiveServices $azureCognitiveServices
+   * @param \Drupal\image_auto_tag\AzureCognitiveServices $azureCognitiveServices
    *   Azure CogSer service.
    */
   public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices, EntityTypeManagerInterface $entityTypeManager) {
@@ -60,7 +60,7 @@ class OperationsForm extends FormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('media_auto_tag.azure'),
+      $container->get('image_auto_tag.azure'),
       $container->get('entity_type.manager')
     );
   }
@@ -69,7 +69,7 @@ class OperationsForm extends FormBase {
    * {@inheritdoc}
    */
   public function getFormId() : string {
-    return 'media_auto_tag_operations';
+    return 'image_auto_tag_operations';
   }
 
   /**
@@ -143,13 +143,13 @@ class OperationsForm extends FormBase {
   public function reset(array &$form, FormStateInterface $form_state) {
     try {
       $this->azure->deletePersonGroup(AzureCognitiveServices::PEOPLE_GROUP);
-      $this->azure->createPersonGroup(AzureCognitiveServices::PEOPLE_GROUP, 'Automatically created group for Drupal media auto tag module.');
+      $this->azure->createPersonGroup(AzureCognitiveServices::PEOPLE_GROUP, 'Automatically created group for Drupal Image Auto Tag module.');
     }
     catch (TransferException $e) {
       $this->messenger()->addError("Could not reset remote data. Code {$e->getCode()}: {$e->getMessage()}");
       return;
     }
-    $personMapStorage = $this->entityTypeManager->getStorage('media_auto_tag_person_map');
+    $personMapStorage = $this->entityTypeManager->getStorage('image_auto_tag_person_map');
     $allPersonMaps = $personMapStorage->loadMultiple();
     $personMapStorage->delete($allPersonMaps);
     $this->messenger()->addStatus('All training records deleted.');

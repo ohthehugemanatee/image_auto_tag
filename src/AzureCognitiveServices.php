@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Drupal\media_auto_tag;
+namespace Drupal\image_auto_tag;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Http\ClientFactory;
@@ -13,11 +13,11 @@ use GuzzleHttp\Exception\TransferException;
  *
  * Service class for Azure Cognitive Services.
  *
- * @package Drupal\media_auto_tag
+ * @package Drupal\image_auto_tag
  */
 class AzureCognitiveServices {
 
-  const PEOPLE_GROUP = 'drupal_media_auto_tag_people';
+  const PEOPLE_GROUP = 'drupal_image_auto_tag_people';
 
   /**
    * The HTTP client.
@@ -50,7 +50,7 @@ class AzureCognitiveServices {
    */
   public function __construct(ClientFactory $httpClientFactory, ConfigFactoryInterface $configFactory) {
     $this->clientFactory = $httpClientFactory;
-    $config = $configFactory->get('media_auto_tag.settings');
+    $config = $configFactory->get('image_auto_tag.settings');
     $this->httpClient = $httpClientFactory->fromOptions([
       'base_uri' => (string) $config->get('azure_endpoint'),
       'headers' => [

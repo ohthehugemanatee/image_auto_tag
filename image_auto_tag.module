@@ -2,15 +2,15 @@
 declare(strict_types = 1);
 /**
  * @file
- * Procedural code for media_auto_tag module.
+ * Procedural code for image_auto_tag module.
  */
 
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\media_auto_tag\AzureCognitiveServices;
-use Drupal\media_auto_tag\Entity\PersonMap;
+use Drupal\image_auto_tag\AzureCognitiveServices;
+use Drupal\image_auto_tag\Entity\PersonMap;
 use GuzzleHttp\Exception\TransferException;
 
 /**
@@ -18,28 +18,28 @@ use GuzzleHttp\Exception\TransferException;
  *
  * Add a setting for face detection on image fields.
  */
-function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+function image_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   /** @var \Drupal\field\FieldConfigInterface $entity */
   $entity = $form_state->getFormObject()->getEntity();
   if ($entity->getFieldStorageDefinition()->getType() === 'image') {
-    $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
+    $form['third_party_settings']['image_auto_tag']['detect_faces'] = [
       '#type' => 'checkbox',
       '#title' => t('Detect faces in uploaded images'),
-      '#description' => t('Submit images for face detection using Media Auto Tag module.'),
-      '#default_value' => $entity->getThirdPartySetting('media_auto_tag', 'detect_faces'),
+      '#description' => t('Submit images for face detection using Image Auto Tag module.'),
+      '#default_value' => $entity->getThirdPartySetting('image_auto_tag', 'detect_faces'),
     ];
     // If the module isn't configured yet.
-    if (\Drupal::config('media_auto_tag.settings')->get('person_entity_bundle') === NULL) {
-      $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
-        '#description' => t('Submit images for face detection using Media Auto Tag module.  You must configure the module before you can use it!'),
+    if (\Drupal::config('image_auto_tag.settings')->get('person_entity_bundle') === NULL) {
+      $form['third_party_settings']['image_auto_tag']['detect_faces'] = [
+        '#description' => t('Submit images for face detection using Image Auto Tag module.  You must configure the module before you can use it!'),
         '#disabled' => TRUE,
-      ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
+      ] + $form['third_party_settings']['image_auto_tag']['detect_faces'];
       return;
     }
     // Build a list of entity reference fields pointing to the right type.
     $tagFieldOptions = [];
     // Look up "the right type" in config.
-    $targetEntityBundleString = \Drupal::config('media_auto_tag.settings')->get('person_entity_bundle');
+    $targetEntityBundleString = \Drupal::config('image_auto_tag.settings')->get('person_entity_bundle');
     list($targetEntityType, $targetEntityBundle) = explode('.', $targetEntityBundleString);
     $fieldInstances = \Drupal::service('entity_field.manager')->getFieldDefinitions($entity->getTargetEntityTypeId(), $entity->getTargetBundle());
     foreach ($fieldInstances as $fieldName => $fieldInstance) {
@@ -49,26 +49,26 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
       }
     }
     if ($tagFieldOptions === []) {
-      $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
-        '#description' => t('Submit images for face detection using Media Auto Tag module.  No entity reference field found on this bundle, which references the "people" type defined in settings. Please check your settings for media_auto_tag and try again.'),
+      $form['third_party_settings']['image_auto_tag']['detect_faces'] = [
+        '#description' => t('Submit images for face detection using Image Auto Tag module.  No entity reference field found on this bundle, which references the "people" type defined in settings. Please check your settings for image_auto_tag and try again.'),
         '#disabled' => TRUE,
-      ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
+      ] + $form['third_party_settings']['image_auto_tag']['detect_faces'];
     }
     else {
-      $form['third_party_settings']['media_auto_tag']['tag_field'] = [
+      $form['third_party_settings']['image_auto_tag']['tag_field'] = [
         '#title' => t('Tag field'),
         '#description' => t('The field which will receive tags based on face recognition. Manual entries into this field will be overwritten when detection is performed!'),
         '#type' => 'select',
         '#options' => $tagFieldOptions,
-        '#default_value' => $entity->getThirdPartySetting('media_auto_tag', 'tag_field'),
+        '#default_value' => $entity->getThirdPartySetting('image_auto_tag', 'tag_field'),
         '#states' => [
           'visible' => [
-            ':input[name="third_party_settings[media_auto_tag][detect_faces]"]' => ['checked' => TRUE],
+            ':input[name="third_party_settings[image_auto_tag][detect_faces]"]' => ['checked' => TRUE],
           ],
         ],
       ];
     }
-    $form['#entity_builders'][] = 'media_auto_tag_form_builder';
+    $form['#entity_builders'][] = 'image_auto_tag_form_builder';
   }
 }
 
@@ -84,25 +84,25 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  *   The form_state.
  */
-function media_auto_tag_form_builder(string $entity_type, EntityInterface $entity, array &$form, FormStateInterface $form_state) {
+function image_auto_tag_form_builder(string $entity_type, EntityInterface $entity, array &$form, FormStateInterface $form_state) {
   if ($form_state->getValue('detect_faces') === 1) {
-    $entity->setThirdPartySetting('media_auto_tag', 'detect_faces', 1);
-    $entity->setThirdPartySetting('media_auto_tag', 'tag_field', $form_state->getValue('tag_field'));
+    $entity->setThirdPartySetting('image_auto_tag', 'detect_faces', 1);
+    $entity->setThirdPartySetting('image_auto_tag', 'tag_field', $form_state->getValue('tag_field'));
     return;
   }
 
-  $entity->unsetThirdPartySetting('media_auto_tag', 'detect_faces');
-  $entity->unsetThirdPartySetting('media_auto_tag', 'tag_field');
+  $entity->unsetThirdPartySetting('image_auto_tag', 'detect_faces');
+  $entity->unsetThirdPartySetting('image_auto_tag', 'tag_field');
 }
 
 /**
  * Implements hook_entity_presave().
  */
-function media_auto_tag_entity_presave(EntityInterface $entity) {
+function image_auto_tag_entity_presave(EntityInterface $entity) {
   if (!($entity instanceof ContentEntityInterface) || $entity instanceof PersonMap) {
     return;
   }
-  $config = \Drupal::config('media_auto_tag.settings');
+  $config = \Drupal::config('image_auto_tag.settings');
   // If the entity has a field that should have face detection performed, submit
   // images and tag.
   foreach ($entity->getFieldDefinitions() as $fieldDefinition) {
@@ -110,13 +110,13 @@ function media_auto_tag_entity_presave(EntityInterface $entity) {
     // If this in an image field, with 'detect_faces'=TRUE, and this is either
     // a new entity, or an updated field value.
     if ($fieldDefinition->getType() === 'image' &&
-      $fieldDefinition->getThirdPartySetting('media_auto_tag', 'detect_faces') &&
+      $fieldDefinition->getThirdPartySetting('image_auto_tag', 'detect_faces') &&
       (!isset($entity->original) || $entity->get($fieldName)->entity->id() !== $entity->original->get($fieldName)->entity->id())
     ) {
-      $peopleEntities = _media_do_face_detection($entity, $fieldDefinition);
+      $peopleEntities = _image_auto_tag_do_face_detection($entity, $fieldDefinition);
       if (!empty($peopleEntities)) {
         // Apply this as the target field value.
-        $targetTagField = $fieldDefinition->getThirdPartySetting('media_auto_tag', 'tag_field');
+        $targetTagField = $fieldDefinition->getThirdPartySetting('image_auto_tag', 'tag_field');
         $entity->set($targetTagField, $peopleEntities);
       }
       $count = count($peopleEntities);
@@ -128,15 +128,15 @@ function media_auto_tag_entity_presave(EntityInterface $entity) {
 /**
  * Implements hook_entity_insert().
  */
-function media_auto_tag_entity_insert(EntityInterface $entity) {
-  _media_auto_tag_entity_post_save($entity);
+function image_auto_tag_entity_insert(EntityInterface $entity) {
+  _image_auto_tag_entity_post_save($entity);
 }
 
 /**
  * Implements hook_entity_update().
  */
-function media_auto_tag_entity_update(EntityInterface $entity) {
-  _media_auto_tag_entity_post_save($entity);
+function image_auto_tag_entity_update(EntityInterface $entity) {
+  _image_auto_tag_entity_post_save($entity);
 }
 
 /**
@@ -149,29 +149,29 @@ function media_auto_tag_entity_update(EntityInterface $entity) {
  * @throws \Drupal\Core\TypedData\Exception\MissingDataException
  * @throws \GuzzleHttp\Exception\GuzzleException
  */
-function _media_auto_tag_entity_post_save(EntityInterface $entity) {
+function _image_auto_tag_entity_post_save(EntityInterface $entity) {
   if (!($entity instanceof ContentEntityInterface)) {
     return;
   }
-  $config = \Drupal::config('media_auto_tag.settings');
+  $config = \Drupal::config('image_auto_tag.settings');
   // Check entity type and bundle.
   $targetEntityBundleString = $config->get('person_entity_bundle');
   list($targetEntityType, $targetEntityBundle) = explode('.', $targetEntityBundleString);
   // If the entity is our "people" entity, check faces.
   if ($entity->getEntityTypeId() === $targetEntityType && $entity->bundle() === $targetEntityBundle) {
-    /** @var \Drupal\media_auto_tag\AzureCognitiveServices $azure */
-    $azure = \Drupal::service('media_auto_tag.azure');
+    /** @var \Drupal\image_auto_tag\AzureCognitiveServices $azure */
+    $azure = \Drupal::service('image_auto_tag.azure');
     // Check availability of the service.
     if ($azure->serviceStatus()) {
       // Do we have a person record yet?
-      $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+      $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
         ->condition('local_id', $entity->id())
         ->condition('local_entity_type', $entity->getEntityTypeId())
         ->execute();
       // If we don't have a record, create one on Azure.
       if ($personMapResult === []) {
-        _media_create_person($entity);
-        _media_create_faces($entity);
+        _image_auto_tag_create_person($entity);
+        _image_auto_tag_create_faces($entity);
       }
       else {
         /** @var PersonMap[] $personMaps */
@@ -189,7 +189,7 @@ function _media_auto_tag_entity_post_save(EntityInterface $entity) {
           foreach ($imageFilesArray as $index => $value) {
             /** @var \Drupal\Core\Image\Image $image */
             $image = $entity->get($targetImageField)->get($index);
-            $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+            $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
               ->condition('local_id', $image->entity->id())
               ->condition('local_entity_type', 'file')
               ->execute();
@@ -217,7 +217,7 @@ function _media_auto_tag_entity_post_save(EntityInterface $entity) {
           // Delete any remote images that aren't on local.
           $personRecord = $azure->getPerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId());
           $faceIds = $personRecord->persistedFaceIds;
-          $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+          $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
             ->condition('foreign_id', $faceIds, 'IN')
             ->condition('local_entity_type', 'file')
             ->execute();
@@ -244,14 +244,14 @@ function _media_auto_tag_entity_post_save(EntityInterface $entity) {
  *
  * Clean up when a mapped entity is deleted.
  */
-function media_auto_tag_entity_delete(EntityInterface $entity) {
+function image_auto_tag_entity_delete(EntityInterface $entity) {
   if ($entity instanceof ContentEntityInterface) {
-    $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+    $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
       ->condition('local_id', $entity->id())
       ->condition('local_entity_type', $entity->getEntityTypeId())
       ->execute();
     if ($personMapResult > 0) {
-      /** @var \Drupal\media_auto_tag\Entity\PersonMap $personMaps */
+      /** @var \Drupal\image_auto_tag\Entity\PersonMap $personMaps */
       $personMaps = PersonMap::loadMultiple($personMapResult);
       foreach ($personMaps as $personMap) {
         $personMap->delete();
@@ -269,9 +269,9 @@ function media_auto_tag_entity_delete(EntityInterface $entity) {
  * @throws \Drupal\Core\Entity\EntityStorageException
  * @throws \GuzzleHttp\Exception\GuzzleException
  */
-function _media_create_person(ContentEntityInterface $entity) {
-  /** @var \Drupal\media_auto_tag\AzureCognitiveServices $azure */
-  $azure = \Drupal::service('media_auto_tag.azure');
+function _image_auto_tag_create_person(ContentEntityInterface $entity) {
+  /** @var \Drupal\image_auto_tag\AzureCognitiveServices $azure */
+  $azure = \Drupal::service('image_auto_tag.azure');
   // Check availability of the service.
   if ($azure->serviceStatus()) {
     // Create the Person record.
@@ -295,12 +295,12 @@ function _media_create_person(ContentEntityInterface $entity) {
  * @throws \Drupal\Core\Entity\EntityStorageException
  * @throws \Drupal\Core\TypedData\Exception\MissingDataException
  */
-function _media_create_faces(ContentEntityInterface $entity) {
-  $config = \Drupal::config('media_auto_tag.settings');
+function _image_auto_tag_create_faces(ContentEntityInterface $entity) {
+  $config = \Drupal::config('image_auto_tag.settings');
   // Submit each value on the image field as a "face".
   $targetImageField = explode('.', $config->get('person_image_field'))[1];
   // Look up the remote personId.
-  $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+  $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
     ->condition('local_id', $entity->id())
     ->condition('local_entity_type', $entity->getEntityTypeId())
     ->execute();
@@ -309,8 +309,8 @@ function _media_create_faces(ContentEntityInterface $entity) {
   }
   $personMap = PersonMap::load(reset($personMapResult));
   $personId = $personMap->getForeignId();
-  /** @var \Drupal\media_auto_tag\AzureCognitiveServices $azure */
-  $azure = \Drupal::service('media_auto_tag.azure');
+  /** @var \Drupal\image_auto_tag\AzureCognitiveServices $azure */
+  $azure = \Drupal::service('image_auto_tag.azure');
   if (!$azure->serviceStatus()) {
     return;
   }
@@ -351,9 +351,9 @@ function _media_create_faces(ContentEntityInterface $entity) {
  * @throws \Drupal\Core\Entity\EntityStorageException
  * @throws \GuzzleHttp\Exception\GuzzleException
  */
-function _media_do_face_detection(EntityInterface $entity, FieldDefinitionInterface $fieldDefinition) {
-  /** @var \Drupal\media_auto_tag\AzureCognitiveServices $azure */
-  $azure = \Drupal::service('media_auto_tag.azure');
+function _image_auto_tag_do_face_detection(EntityInterface $entity, FieldDefinitionInterface $fieldDefinition) {
+  /** @var \Drupal\image_auto_tag\AzureCognitiveServices $azure */
+  $azure = \Drupal::service('image_auto_tag.azure');
   // Check availability of the service.
   if ($azure->serviceStatus()) {
     $fileUri = $entity->{$fieldDefinition->getName()}->entity->getFileUri();
@@ -376,7 +376,7 @@ function _media_do_face_detection(EntityInterface $entity, FieldDefinitionInterf
           $personIds[] = $identifiedFace->candidates[0]->personId;
         }
       }
-      $personMapResult = \Drupal::entityQuery('media_auto_tag_person_map')
+      $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
         ->condition('foreign_id', $personIds, 'IN')
         ->execute();
       /* @var PersonMap[] $personMaps */

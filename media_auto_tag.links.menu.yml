@@ -1,5 +1,0 @@
-media_auto_tag.settings:
-  title: 'Media Auto Tag'
-  description: 'Administrative settings for the Media Auto Tag module.'
-  route_name: media_auto_tag.settings
-  parent: 'system.admin_config_media'

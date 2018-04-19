@@ -1,5 +1,5 @@
 {
-  "name": "drupal/media_auto_tag",
+  "name": "drupal/image_auto_tag",
   "description": "Drupal module to automatically tag media files using ML/AI",
   "type": "drupal-module",
   "authors": [
