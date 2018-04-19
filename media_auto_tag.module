@@ -31,9 +31,9 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
     // If the module isn't configured yet.
     if (\Drupal::config('media_auto_tag.settings')->get('person_entity_bundle') === NULL) {
       $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
-          '#description' => t('Submit images for face detection using Media Auto Tag module.  You must configure the module before you can use it!'),
-          '#disabled' => TRUE,
-        ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
+        '#description' => t('Submit images for face detection using Media Auto Tag module.  You must configure the module before you can use it!'),
+        '#disabled' => TRUE,
+      ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
       return;
     }
     // Build a list of entity reference fields pointing to the right type.
@@ -50,9 +50,9 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
     }
     if ($tagFieldOptions === []) {
       $form['third_party_settings']['media_auto_tag']['detect_faces'] = [
-          '#description' => t('Submit images for face detection using Media Auto Tag module.  No entity reference field found on this bundle, which references the "people" type defined in settings. Please check your settings for media_auto_tag and try again.'),
-          '#disabled' => TRUE,
-        ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
+        '#description' => t('Submit images for face detection using Media Auto Tag module.  No entity reference field found on this bundle, which references the "people" type defined in settings. Please check your settings for media_auto_tag and try again.'),
+        '#disabled' => TRUE,
+      ] + $form['third_party_settings']['media_auto_tag']['detect_faces'];
     }
     else {
       $form['third_party_settings']['media_auto_tag']['tag_field'] = [
@@ -68,7 +68,31 @@ function media_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
         ],
       ];
     }
+    $form['#entity_builders'][] = 'media_auto_tag_form_builder';
   }
+}
+
+/**
+ * Form builder function to handle our third party settings.
+ *
+ * @param string $entity_type
+ *   The entity type.
+ * @param \Drupal\Core\Entity\EntityInterface $entity
+ *   The Field config entity.
+ * @param array $form
+ *   The form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form_state.
+ */
+function media_auto_tag_form_builder(string $entity_type, EntityInterface $entity, array &$form, FormStateInterface $form_state) {
+  if ($form_state->getValue('detect_faces') === 1) {
+    $entity->setThirdPartySetting('media_auto_tag', 'detect_faces', 1);
+    $entity->setThirdPartySetting('media_auto_tag', 'tag_field', $form_state->getValue('tag_field'));
+    return;
+  }
+
+  $entity->unsetThirdPartySetting('media_auto_tag', 'detect_faces');
+  $entity->unsetThirdPartySetting('media_auto_tag', 'tag_field');
 }
 
 /**
