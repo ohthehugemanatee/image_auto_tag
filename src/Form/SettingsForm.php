@@ -200,11 +200,11 @@ class SettingsForm extends ConfigFormBase {
 
     // If our personGroup doesn't exist yet.
     $personGroup = array_filter($personGroups, function ($group) {
-      return $group->personGroupId === self::PEOPLE_GROUP;
+      return $group->personGroupId === AzureCognitiveServices::PEOPLE_GROUP;
     });
     if ($personGroup === []) {
       try {
-        $this->azure->createPersonGroup(self::PEOPLE_GROUP, 'Automatically created group for Drupal media auto tag module.');
+        $this->azure->createPersonGroup(AzureCognitiveServices::PEOPLE_GROUP, 'Automatically created group for Drupal media auto tag module.');
       }
       catch (TransferException $e) {
         $this->messenger()->addError('Could not create the Drupal People group. Error: ' . $e->getMessage());

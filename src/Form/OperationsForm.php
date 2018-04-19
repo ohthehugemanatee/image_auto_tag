@@ -76,7 +76,26 @@ class OperationsForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) : array {
-    $trainingStatus = $this->azure->getPersonGroupTrainingStatus(AzureCognitiveServices::PEOPLE_GROUP);
+    try {
+      $trainingStatus = $this->azure->getPersonGroupTrainingStatus(AzureCognitiveServices::PEOPLE_GROUP);
+    }
+    catch (TransferException $e) {
+      if ($e->getCode() !== 404) {
+        $this->messenger()
+          ->addError("Could not get training status. Code {$e->getCode()}: {$e->getMessage()}.");
+      }
+      else {
+        $messageBody = json_decode((string) $e->getResponse()->getBody());
+        if ($messageBody->error->code !== 'PersonGroupNotTrained') {
+          $this->messenger()
+            ->addError('Training group does not exist on the remote resource. Please re-save the settings tab.');
+          return $form;
+        }
+        $trainingStatus = new \stdClass();
+        $trainingStatus->status = 'Never trained';
+        $trainingStatus->lastActionDateTime = 'N/A';
+      }
+    }
     $form['training_status'] = [
       '#title' => t('Training status'),
       '#type' => 'item',
@@ -124,15 +143,16 @@ class OperationsForm extends FormBase {
   public function reset(array &$form, FormStateInterface $form_state) {
     try {
       $this->azure->deletePersonGroup(AzureCognitiveServices::PEOPLE_GROUP);
-      $this->azure->createPersonGroup(self::PEOPLE_GROUP, 'Automatically created group for Drupal media auto tag module.');
+      $this->azure->createPersonGroup(AzureCognitiveServices::PEOPLE_GROUP, 'Automatically created group for Drupal media auto tag module.');
     }
     catch (TransferException $e) {
       $this->messenger()->addError("Could not reset remote data. Code {$e->getCode()}: {$e->getMessage()}");
       return;
     }
     $personMapStorage = $this->entityTypeManager->getStorage('media_auto_tag_person_map');
-    $allPersonMaps = $personMapStorage->getQuery()->execute();
+    $allPersonMaps = $personMapStorage->loadMultiple();
     $personMapStorage->delete($allPersonMaps);
+    $this->messenger()->addStatus('All training records deleted.');
     $this->messenger()->addWarning('Note: Re-submitting is not implemented yet. You can manually re-submit content by saving it.');
 
   }
