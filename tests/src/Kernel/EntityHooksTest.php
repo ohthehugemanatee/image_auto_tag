@@ -85,7 +85,7 @@ class EntityHooksTest extends KernelTestBase {
     // We'll check service status three times.
     $azure->serviceStatus()
       ->willReturn(TRUE)
-      ->shouldBeCalledTimes(3);
+      ->shouldBeCalledTimes(4);
     // We'll create one person, and return a person_id.
     $personReturn = new \stdClass();
     $personReturn->personId = 'dummy_person_id';

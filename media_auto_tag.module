@@ -96,45 +96,60 @@ function media_auto_tag_form_builder(string $entity_type, EntityInterface $entit
 }
 
 /**
- * Implements hook_entity_insert().
+ * Implements hook_entity_presave().
  */
-function media_auto_tag_entity_insert(EntityInterface $entity) {
+function media_auto_tag_entity_presave(EntityInterface $entity) {
   if (!($entity instanceof ContentEntityInterface) || $entity instanceof PersonMap) {
     return;
   }
   $config = \Drupal::config('media_auto_tag.settings');
-  $processed = FALSE;
-  // Check entity type and bundle.
-  $targetEntityBundleString = $config->get('person_entity_bundle');
-  list($targetEntityType, $targetEntityBundle) = explode('.', $targetEntityBundleString);
-  // If the entity is our "people" entity, create person and submit faces.
-  if ($entity->getEntityTypeId() === $targetEntityType && $entity->bundle() === $targetEntityBundle) {
-    _media_create_person($entity);
-    _media_create_faces($entity);
-  }
-  // If the entity has a field that should have face detection performed, submit images and tag.
+  // If the entity has a field that should have face detection performed, submit
+  // images and tag.
   foreach ($entity->getFieldDefinitions() as $fieldDefinition) {
-    if ($fieldDefinition->getType() === 'image' && $fieldDefinition->getThirdPartySetting('media_auto_tag', 'detect_faces')) {
+    $fieldName = $fieldDefinition->getName();
+    // If this in an image field, with 'detect_faces'=TRUE, and this is either
+    // a new entity, or an updated field value.
+    if ($fieldDefinition->getType() === 'image' &&
+      $fieldDefinition->getThirdPartySetting('media_auto_tag', 'detect_faces') &&
+      (!isset($entity->original) || $entity->get($fieldName)->entity->id() !== $entity->original->get($fieldName)->entity->id())
+    ) {
       $peopleEntities = _media_do_face_detection($entity, $fieldDefinition);
       if (!empty($peopleEntities)) {
         // Apply this as the target field value.
         $targetTagField = $fieldDefinition->getThirdPartySetting('media_auto_tag', 'tag_field');
         $entity->set($targetTagField, $peopleEntities);
-        $processed = TRUE;
       }
       $count = count($peopleEntities);
       \Drupal::messenger()->addStatus("Detected {$count} faces.");
     }
   }
-  if ($processed) {
-    $entity->save();
-  }
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function media_auto_tag_entity_insert(EntityInterface $entity) {
+  _media_auto_tag_entity_post_save($entity);
 }
 
 /**
  * Implements hook_entity_update().
  */
 function media_auto_tag_entity_update(EntityInterface $entity) {
+  _media_auto_tag_entity_post_save($entity);
+}
+
+/**
+ * Entity insert and update hook.
+ *
+ * @param \Drupal\Core\Entity\EntityInterface $entity
+ *   The entity that has just been saved.
+ *
+ * @throws \Drupal\Core\Entity\EntityStorageException
+ * @throws \Drupal\Core\TypedData\Exception\MissingDataException
+ * @throws \GuzzleHttp\Exception\GuzzleException
+ */
+function _media_auto_tag_entity_post_save(EntityInterface $entity) {
   if (!($entity instanceof ContentEntityInterface)) {
     return;
   }
@@ -220,17 +235,6 @@ function media_auto_tag_entity_update(EntityInterface $entity) {
           }
         }
       }
-    }
-  }
-
-  // If the entity has a field that should have face detection performed, submit
-  // images and tag.
-  foreach ($entity->getFieldDefinitions() as $fieldDefinition) {
-    $fieldName = $fieldDefinition->getName();
-    if ($fieldDefinition->getType() === 'image' &&
-      $fieldDefinition->getThirdPartySetting('media_auto_tag', 'detect_faces') &&
-      $entity->get('field_image')->entity->id() !== $entity->original->get('field_image')->entity->id() ) {
-      _media_do_face_detection($entity, $fieldDefinition);
     }
   }
 }
