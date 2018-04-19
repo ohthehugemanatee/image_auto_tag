@@ -1,2 +1,2 @@
-azure_endpoint: 'https://northeurope.api.cognitive.microsoft.com/face/v1.0'
-azure_service_key: '30ebdb47a8cb4985b85c4772a476b7a9'
+azure_endpoint: ''
+azure_service_key: ''
