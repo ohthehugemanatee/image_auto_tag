@@ -47,6 +47,8 @@ class EntityHooksTest extends KernelTestBase {
     $this->installEntitySchema('user');
     $this->installEntitySchema('file');
     $this->installSchema('file', ['file_usage']);
+    $this->installSchema('node', 'node_access');
+
     // Create content types.
     try {
       $this->createContentType([
@@ -64,14 +66,11 @@ class EntityHooksTest extends KernelTestBase {
     // Add fields to the content types.
     $this->createImageField('field_face', 'person');
     $this->createEntityReferenceField('node', 'article', 'field_people', 'Detected People', 'node');
-    $this->createImageField('field_image', 'article', [], [
-      'third_party_settings' => [
-        'media_auto_tag' => [
-          'detect_faces' => TRUE,
-          'tag_field' => 'field_people',
-        ],
-      ],
-    ]);
+    /** @var \Drupal\field\FieldConfigInterface $fieldConfig */
+    $fieldConfig = $this->createImageField('field_image', 'article');
+    $fieldConfig->setThirdPartySetting('media_auto_tag', 'detect_faces', TRUE);
+    $fieldConfig->setThirdPartySetting('media_auto_tag', 'tag_field', 'field_people');
+    $fieldConfig->save();
     // Create our configuration.
     $GLOBALS['config']['media_auto_tag.settings'] = [
       'azure_endpoint' => 'https://example.com/endpoint/',
@@ -81,50 +80,75 @@ class EntityHooksTest extends KernelTestBase {
       'synchronous' => TRUE,
     ];
 
-
-  }
-
-  /**
-   * Test creating a Person and Face record.
-   */
-  public function testFaceCreate() {
     // Create a mock AzureCognitiveServices class.
     $azure = $this->prophesize(AzureCognitiveServices::class);
+    // We'll check service status three times.
     $azure->serviceStatus()
       ->willReturn(TRUE)
-      ->shouldBeCalledTimes(2);
+      ->shouldBeCalledTimes(3);
+    // We'll create one person, and return a person_id.
     $personReturn = new \stdClass();
     $personReturn->personId = 'dummy_person_id';
     $azure->createPerson(AzureCognitiveServices::PEOPLE_GROUP, 'Test person')
       ->shouldBeCalled()
       ->willReturn($personReturn);
+    // We'll load one face onto the person record, and return a persistent face id.
     $faceReturn = new \stdClass();
     $faceReturn->persistedFaceId = 'dummy_persistent_face_id';
     $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, 'dummy_person_id', 'public://fakefile.jpeg')
       ->shouldBeCalled()
       ->willReturn($faceReturn);
-    $azure = $azure->reveal();
-    $this->container->set('media_auto_tag.azure', $azure);
+    // We'll run detection on one Image file, and return one detected face.
+    $detectReturn = [new \stdClass()];
+    $detectReturn[0]->faceId = 'dummy_detected_face_id';
+    $azure->detectFaces('public://fakefileToTag.jpeg')
+      ->ShouldBeCalledTimes(1)
+      ->willReturn($detectReturn);
+    // We'll run identification once, and return a single candidate.
+    $identifyReturn = json_decode('
+    [
+        {
+            "faceId": "dummy_detected_face_id",
+            "candidates": [
+                {
+                    "personId": "dummy_person_id",
+                    "confidence": 0.92
+                }
+            ]
+        }
+    ]');
+    $azure->identifyFaces(['dummy_detected_face_id'], AzureCognitiveServices::PEOPLE_GROUP)
+      ->ShouldBeCalledTimes(1)
+      ->willReturn($identifyReturn);
 
+    $azureDummy = $azure->reveal();
+    $this->container->set('media_auto_tag.azure', $azureDummy);
+
+  }
+
+  /**
+   * Test creating entities.
+   */
+  public function testEntityCreate() {
     $file = File::create([
       'filename' => '/tmp/fakefile.jpeg',
       'uri' => 'public://fakefile.jpeg',
       'langcode' => 'en',
     ]);
     $file->save();
-    $article = Node::create([
+    $person = Node::create([
       'type' => 'person',
       'title' => 'Test person',
       'field_face' => $file,
     ]);
-    $saveStatus = $article->save();
+    $saveStatus = $person->save();
     // Check that save was successful.
     self::assertEquals(SAVED_NEW, $saveStatus, 'Node was not saved successfully');
     // Check that personMaps were created.
     /** @var \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager */
     $entityTypeManager = $this->container->get('entity_type.manager');
     $personMapStorage = $entityTypeManager->getStorage('media_auto_tag_person_map');
-    self::assertNotEmpty($article->id(), 'Node ID was empty.');
+    self::assertNotEmpty($person->id(), 'Node ID was empty.');
     /** @var \Drupal\media_auto_tag\Entity\PersonMap[] $personMapForPerson */
     $personMapForPerson = $personMapStorage->loadByProperties([
       'foreign_id' => 'dummy_person_id',
@@ -132,8 +156,8 @@ class EntityHooksTest extends KernelTestBase {
     self::assertNotEmpty($personMapForPerson, 'No PersonMap created for the person node');
     self::assertCount(1, $personMapForPerson, 'Too many PersonMaps created for one person');
     $personMapForPerson = reset($personMapForPerson);
-    self::assertEquals($article->getEntityTypeId(), $personMapForPerson->getLocalEntityTypeId(), 'PersonMap for Person points to the wrong entity type id.');
-    self::assertEquals($article->id(), $personMapForPerson->getLocalId(), 'PersonMap for Person points to the wrong Node Id.');
+    self::assertEquals($person->getEntityTypeId(), $personMapForPerson->getLocalEntityTypeId(), 'PersonMap for Person points to the wrong entity type id.');
+    self::assertEquals($person->id(), $personMapForPerson->getLocalId(), 'PersonMap for Person points to the wrong Node Id.');
     $personMapForFace = $personMapStorage->loadByProperties([
       'foreign_id' => 'dummy_persistent_face_id',
     ]);
@@ -141,7 +165,28 @@ class EntityHooksTest extends KernelTestBase {
     self::assertCount(1, $personMapForFace, 'Too many PersonMaps created for one face');
     $personMapForFace = reset($personMapForFace);
     self::assertEquals($file->getEntityTypeId(), $personMapForFace->getLocalEntityTypeId(), 'PersonMap for Face points to the wrong entity type id.');
-    self::assertEquals($article->id(), $personMapForFace->getLocalId(), 'PersonMap for Face points to the wrong entity id.');
+    self::assertEquals($person->id(), $personMapForFace->getLocalId(), 'PersonMap for Face points to the wrong entity id.');
+
+    // Create an article with an image to be tagged.
+    $fileToTag = $file = File::create([
+      'filename' => '/tmp/fakefileToTag.jpeg',
+      'uri' => 'public://fakefileToTag.jpeg',
+      'langcode' => 'en',
+    ]);
+    $file->save();
+    $article = Node::create([
+      'type' => 'article',
+      'title' => 'test article',
+      'field_image' => $file,
+    ]);
+    $articleSaveStatus = $article->save();
+    self::assertEquals(SAVED_NEW, $articleSaveStatus, 'The article was not saved correctly');
+    /** @var \Drupal\Core\Field\EntityReferenceFieldItemListInterface $fieldValue */
+    $fieldValue = $article->get('field_people');
+    $target_entity = $fieldValue->get(0);
+
+    // Check that our target person was assigned as a tag.
+    self::assertEquals('Test person', $target_entity->entity->label(), 'Test person was not assigned as a tag');
   }
 
   /**

@@ -226,7 +226,10 @@ function media_auto_tag_entity_update(EntityInterface $entity) {
   // If the entity has a field that should have face detection performed, submit
   // images and tag.
   foreach ($entity->getFieldDefinitions() as $fieldDefinition) {
-    if ($fieldDefinition->getType() === 'image' && $fieldDefinition->getThirdPartySetting('media_auto_tag', 'detect_faces')) {
+    $fieldName = $fieldDefinition->getName();
+    if ($fieldDefinition->getType() === 'image' &&
+      $fieldDefinition->getThirdPartySetting('media_auto_tag', 'detect_faces') &&
+      $entity->get('field_image')->entity->id() !== $entity->original->get('field_image')->entity->id() ) {
       _media_do_face_detection($entity, $fieldDefinition);
     }
   }
