@@ -68,31 +68,7 @@ function image_auto_tag_form_field_config_edit_form_alter(&$form, FormStateInter
         ],
       ];
     }
-    $form['#entity_builders'][] = 'image_auto_tag_form_builder';
   }
-}
-
-/**
- * Form builder function to handle our third party settings.
- *
- * @param string $entity_type
- *   The entity type.
- * @param \Drupal\Core\Entity\EntityInterface $entity
- *   The Field config entity.
- * @param array $form
- *   The form.
- * @param \Drupal\Core\Form\FormStateInterface $form_state
- *   The form_state.
- */
-function image_auto_tag_form_builder(string $entity_type, EntityInterface $entity, array &$form, FormStateInterface $form_state) {
-  if ($form_state->getValue('detect_faces') === 1) {
-    $entity->setThirdPartySetting('image_auto_tag', 'detect_faces', 1);
-    $entity->setThirdPartySetting('image_auto_tag', 'tag_field', $form_state->getValue('tag_field'));
-    return;
-  }
-
-  $entity->unsetThirdPartySetting('image_auto_tag', 'detect_faces');
-  $entity->unsetThirdPartySetting('image_auto_tag', 'tag_field');
 }
 
 /**
@@ -102,7 +78,6 @@ function image_auto_tag_entity_presave(EntityInterface $entity) {
   if (!($entity instanceof ContentEntityInterface) || $entity instanceof PersonMap) {
     return;
   }
-  $config = \Drupal::config('image_auto_tag.settings');
   // If the entity has a field that should have face detection performed, submit
   // images and tag.
   foreach ($entity->getFieldDefinitions() as $fieldDefinition) {
