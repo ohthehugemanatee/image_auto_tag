@@ -7,6 +7,9 @@ A Drupal module that submits uploaded images to a face detection and recognition
 
 This was my code project for Drupalcon Nashville 2018. For now, it only supports Azure Computer Vision. I plan to refactor this into a plugin, and provide at least one alternative backend service. For now, since Azure is free for the first 5000 requests per month, this is a great option for many Drupal sites to take advantage of facial recognition.
 
+![screencast](doc/screencast.gif)
+
+
 How to use it
 ===
 
