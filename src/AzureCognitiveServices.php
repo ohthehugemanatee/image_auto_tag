@@ -221,13 +221,13 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function createPerson(string $personGroupId, string $name) {
+  public function createPerson(string $personGroupId, string $name) : string {
     $response = $this->httpClient->request('POST', 'persongroups/' . $personGroupId . '/persons', [
       'body' => json_encode([
         'name' => $name,
       ]),
     ]);
-    return json_decode((string) $response->getBody());
+    return json_decode((string) $response->getBody())->personId;
   }
 
   /**
@@ -314,7 +314,7 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function addFace(string $personGroupId, string $personId, string $file) {
+  public function addFace(string $personGroupId, string $personId, string $file) : string{
     $response = $this->httpClient->request('POST',
       "persongroups/{$personGroupId}/persons/{$personId}/persistedFaces", [
         'headers' => [
@@ -323,7 +323,7 @@ class AzureCognitiveServices {
         'body' => fopen($file, 'rb'),
       ]);
 
-    return json_decode((string) $response->getBody());
+    return json_decode((string) $response->getBody())->persistedFaceId;
   }
 
   /**

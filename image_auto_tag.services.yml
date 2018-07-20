@@ -2,3 +2,6 @@ services:
   image_auto_tag.azure:
     class: Drupal\image_auto_tag\AzureCognitiveServices
     arguments: ['@http_client_factory', '@config.factory']
+  image_auto_tag:
+    class: Drupal\image_auto_tag\ImageAutoTag
+    arguments: ['@image_auto_tag.azure', '@config.factory', '@entity_type.manager']

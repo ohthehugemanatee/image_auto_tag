@@ -88,7 +88,9 @@ function image_auto_tag_entity_presave(EntityInterface $entity) {
       $fieldDefinition->getThirdPartySetting('image_auto_tag', 'detect_faces') &&
       (!isset($entity->original) || $entity->get($fieldName)->entity->id() !== $entity->original->get($fieldName)->entity->id())
     ) {
-      $peopleEntities = _image_auto_tag_do_face_detection($entity, $fieldDefinition);
+      // The Image Auto Tag service.
+      $imageAutoTag = \Drupal::service('image_auto_tag');
+      $peopleEntities = $imageAutoTag->detectAndIdentifyFaces($entity, $fieldDefinition);
       if (!empty($peopleEntities)) {
         // Apply this as the target field value.
         $targetTagField = $fieldDefinition->getThirdPartySetting('image_auto_tag', 'tag_field');
@@ -134,79 +136,79 @@ function _image_auto_tag_entity_post_save(EntityInterface $entity) {
   list($targetEntityType, $targetEntityBundle) = explode('.', $targetEntityBundleString);
   // If the entity is our "people" entity, check faces.
   if ($entity->getEntityTypeId() === $targetEntityType && $entity->bundle() === $targetEntityBundle) {
-    /** @var \Drupal\image_auto_tag\AzureCognitiveServices $azure */
-    $azure = \Drupal::service('image_auto_tag.azure');
-    // Check availability of the service.
-    if ($azure->serviceStatus()) {
-      // Do we have a person record yet?
-      $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
-        ->condition('local_id', $entity->id())
-        ->condition('local_entity_type', $entity->getEntityTypeId())
-        ->execute();
-      // If we don't have a record, create one on Azure.
-      if ($personMapResult === []) {
-        _image_auto_tag_create_person($entity);
-        _image_auto_tag_create_faces($entity);
+    // Image Auto Tag service.
+    /** @var \Drupal\image_auto_tag\ImageAutoTag $imageAutoTag */
+    $imageAutoTag = \Drupal::service('image_auto_tag');
+    // Do we have a person record yet?
+    $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
+      ->condition('local_id', $entity->id())
+      ->condition('local_entity_type', $entity->getEntityTypeId())
+      ->execute();
+    // If we don't have a record, create one on Azure.
+    if ($personMapResult === []) {
+      $imageAutoTag->createPerson($entity);
+      $imageAutoTag->createFaces($entity);
+    }
+    else {
+      /** @var \Drupal\image_auto_tag\Entity\PersonMap[] $personMaps */
+      $personMaps = PersonMap::loadMultiple($personMapResult);
+      $personMap = reset($personMaps);
+      // Otherwise, update the existing Person on Azure.
+      if ($entity->label() !== $entity->original->label()) {
+        // @todo: Do this through the generic ImageAutoTag service.
+        $azure = \Drupal::service('image_auto_tag.azure');
+        $azure->updatePerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $entity->label());
       }
-      else {
-        /** @var PersonMap[] $personMaps */
-        $personMaps = PersonMap::loadMultiple($personMapResult);
-        $personMap = reset($personMaps);
-        // Otherwise, update the existing Person on Azure.
-        if ($entity->label() !== $entity->original->label()) {
-          $azure->updatePerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $entity->label());
-        }
-        // If the faces image field value has changed.
-        $targetImageField = explode('.', $config->get('person_image_field'))[1];
-        $imageFilesArray = $entity->get($targetImageField)->getValue();
-        if ($imageFilesArray !== $entity->original->get($targetImageField)->getValue()) {
-          // Make sure all the local images exist on the remote.
-          foreach ($imageFilesArray as $index => $value) {
-            /** @var \Drupal\Core\Image\Image $image */
-            $image = $entity->get($targetImageField)->get($index);
-            $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
-              ->condition('local_id', $image->entity->id())
-              ->condition('local_entity_type', 'file')
-              ->execute();
-            // If this image doesn't have a personMap yet, upload it as a face.
-            if ($personMapResult === []) {
-              try {
-                $imagePath = $image->entity->getFileUri();
-                $faceId = $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $imagePath);
-                PersonMap::create([
-                  'foreign_id' => $faceId->persistedFaceId,
-                  'local_id' => $image->entity->id(),
-                  'local_entity_type' => 'file',
-                ])->save();
-              }
-              catch (TransferException $e) {
-                \Drupal::messenger()->addWarning(t('Unable to submit face images to Azure for processing. Error: %code : %msg.',
-                  [
-                    '%code' => $e->getCode(),
-                    '%msg' => $e->getMessage(),
-                  ]
-                ));
-              }
-            }
-          }
-          // Delete any remote images that aren't on local.
-          $personRecord = $azure->getPerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId());
-          $faceIds = $personRecord->persistedFaceIds;
+      // If the faces image field value has changed.
+      $targetImageField = explode('.', $config->get('person_image_field'))[1];
+      $imageFilesArray = $entity->get($targetImageField)->getValue();
+      if ($imageFilesArray !== $entity->original->get($targetImageField)->getValue()) {
+        // Make sure all the local images exist on the remote.
+        foreach ($imageFilesArray as $index => $value) {
+          /** @var \Drupal\Core\Image\Image $image */
+          $image = $entity->get($targetImageField)->get($index);
           $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
-            ->condition('foreign_id', $faceIds, 'IN')
+            ->condition('local_id', $image->entity->id())
             ->condition('local_entity_type', 'file')
             ->execute();
-          if (count($personMapResult) !== count($faceIds)) {
-            $personMaps = PersonMap::loadMultiple($personMapResult);
-            $foreignIds = [];
-            foreach ($personMaps as $personMap) {
-              $foreignIds[] = $personMap->getForeignId();
+          // If this image doesn't have a personMap yet, upload it as a face.
+          if ($personMapResult === []) {
+            try {
+              $imagePath = $image->entity->getFileUri();
+              $faceId = $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $imagePath);
+              PersonMap::create([
+                'foreign_id' => $faceId->persistedFaceId,
+                'local_id' => $image->entity->id(),
+                'local_entity_type' => 'file',
+              ])->save();
             }
-            $missingFaces = array_diff($foreignIds, $faceIds);
-            // Delete any faces that exist on foreign, but not local.
-            foreach ($missingFaces as $missingFace) {
-              $azure->deleteFace(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $missingFace);
+            catch (TransferException $e) {
+              \Drupal::messenger()->addWarning(t('Unable to submit face images to Azure for processing. Error: %code : %msg.',
+                [
+                  '%code' => $e->getCode(),
+                  '%msg' => $e->getMessage(),
+                ]
+              ));
             }
+          }
+        }
+        // Delete any remote images that aren't on local.
+        $personRecord = $azure->getPerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId());
+        $faceIds = $personRecord->persistedFaceIds;
+        $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
+          ->condition('foreign_id', $faceIds, 'IN')
+          ->condition('local_entity_type', 'file')
+          ->execute();
+        if (count($personMapResult) !== count($faceIds)) {
+          $personMaps = PersonMap::loadMultiple($personMapResult);
+          $foreignIds = [];
+          foreach ($personMaps as $personMap) {
+            $foreignIds[] = $personMap->getForeignId();
+          }
+          $missingFaces = array_diff($foreignIds, $faceIds);
+          // Delete any faces that exist on foreign, but not local.
+          foreach ($missingFaces as $missingFace) {
+            $azure->deleteFace(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $missingFace);
           }
         }
       }
@@ -231,136 +233,6 @@ function image_auto_tag_entity_delete(EntityInterface $entity) {
       foreach ($personMaps as $personMap) {
         $personMap->delete();
       }
-    }
-  }
-}
-
-/**
- * Submit faces for an entity.
- *
- * @param \Drupal\Core\Entity\ContentEntityInterface $entity
- *   The entity containing faces to submit.
- *
- * @throws \Drupal\Core\Entity\EntityStorageException
- * @throws \GuzzleHttp\Exception\GuzzleException
- */
-function _image_auto_tag_create_person(ContentEntityInterface $entity) {
-  /** @var \Drupal\image_auto_tag\AzureCognitiveServices $azure */
-  $azure = \Drupal::service('image_auto_tag.azure');
-  // Check availability of the service.
-  if ($azure->serviceStatus()) {
-    // Create the Person record.
-    $person = $azure->createPerson(AzureCognitiveServices::PEOPLE_GROUP, $entity->label());
-    $personId = $person->personId;
-    // Create the personMap record.
-    PersonMap::create([
-      'foreign_id' => $personId,
-      'local_id' => $entity->id(),
-      'local_entity_type' => $entity->getEntityTypeId(),
-    ])->save();
-  }
-}
-
-/**
- * Create faces for a given entity and personId.
- *
- * @param \Drupal\Core\Entity\ContentEntityInterface $entity
- *   The Content Entity representing the person.
- *
- * @throws \Drupal\Core\Entity\EntityStorageException
- * @throws \Drupal\Core\TypedData\Exception\MissingDataException
- */
-function _image_auto_tag_create_faces(ContentEntityInterface $entity) {
-  $config = \Drupal::config('image_auto_tag.settings');
-  // Submit each value on the image field as a "face".
-  $targetImageField = explode('.', $config->get('person_image_field'))[1];
-  // Look up the remote personId.
-  $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
-    ->condition('local_id', $entity->id())
-    ->condition('local_entity_type', $entity->getEntityTypeId())
-    ->execute();
-  if ($personMapResult === []) {
-    return;
-  }
-  $personMap = PersonMap::load(reset($personMapResult));
-  $personId = $personMap->getForeignId();
-  /** @var \Drupal\image_auto_tag\AzureCognitiveServices $azure */
-  $azure = \Drupal::service('image_auto_tag.azure');
-  if (!$azure->serviceStatus()) {
-    return;
-  }
-  foreach ($entity->get($targetImageField)->getValue() as $index => $value) {
-    /** @var \Drupal\Core\Image\Image $image */
-    $image = $entity->get($targetImageField)->get($index);
-    $imagePath = $image->entity->getFileUri();
-    try {
-      $faceId = $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, $personId, $imagePath);
-      PersonMap::create([
-        'foreign_id' => $faceId->persistedFaceId,
-        'local_id' => $image->entity->id(),
-        'local_entity_type' => 'file',
-      ])->save();
-    }
-    catch (TransferException $e) {
-      \Drupal::messenger()->addWarning(t('Unable to submit face images to Azure for processing. Error: %code : %msg.',
-        [
-          '%code' => $e->getCode(),
-          '%msg' => $e->getMessage(),
-        ]
-      ));
-    }
-  }
-}
-
-/**
- * Run face detection on a given entity and image field.
- *
- * @param \Drupal\Core\Entity\EntityInterface $entity
- *   The target entity.
- * @param \Drupal\Core\Field\FieldDefinitionInterface $fieldDefinition
- *   The target image field.
- *
- * @return array
- *   An array of the people entities whose faces were detected.
- *
- * @throws \Drupal\Core\Entity\EntityStorageException
- * @throws \GuzzleHttp\Exception\GuzzleException
- */
-function _image_auto_tag_do_face_detection(EntityInterface $entity, FieldDefinitionInterface $fieldDefinition) {
-  /** @var \Drupal\image_auto_tag\AzureCognitiveServices $azure */
-  $azure = \Drupal::service('image_auto_tag.azure');
-  // Check availability of the service.
-  if ($azure->serviceStatus()) {
-    $fileUri = $entity->{$fieldDefinition->getName()}->entity->getFileUri();
-    $detectedFaces = $azure->detectFaces($fileUri);
-    if (!empty($detectedFaces)) {
-      // Identify detected faces.
-      $facesToIdentify = [];
-      foreach ($detectedFaces as $detectedFace) {
-        $facesToIdentify[] = $detectedFace->faceId;
-      }
-      $identifiedFaces = $azure->identifyFaces(array_slice($facesToIdentify, 0, 10), AzureCognitiveServices::PEOPLE_GROUP);
-      if (empty($identifiedFaces)) {
-        return [];
-      }
-      // Loop over the identified faces and tag with their Drupal entities.
-      $personIds = [];
-      foreach ($identifiedFaces as $identifiedFace) {
-        // Take the first candidate.
-        if ($identifiedFace->candidates !== []) {
-          $personIds[] = $identifiedFace->candidates[0]->personId;
-        }
-      }
-      $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
-        ->condition('foreign_id', $personIds, 'IN')
-        ->execute();
-      /* @var PersonMap[] $personMaps */
-      $personMaps = PersonMap::loadMultiple($personMapResult);
-      $peopleEntities = [];
-      foreach ($personMaps as $personMap) {
-        $peopleEntities[] = $personMap->getLocalEntity();
-      }
-      return $peopleEntities;
     }
   }
 }
