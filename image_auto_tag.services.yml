@@ -5,3 +5,6 @@ services:
   image_auto_tag:
     class: Drupal\image_auto_tag\ImageAutoTag
     arguments: ['@image_auto_tag.azure', '@config.factory', '@entity_type.manager']
+  image_auto_tag.entity_operations:
+    class: Drupal\image_auto_tag\EntityOperations
+    arguments: ['@image_auto_tag']

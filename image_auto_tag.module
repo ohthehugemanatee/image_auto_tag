@@ -11,6 +11,7 @@ use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\image_auto_tag\AzureCognitiveServices;
 use Drupal\image_auto_tag\Entity\PersonMap;
+use Drupal\image_auto_tag\ImageAutoTagInterface;
 use GuzzleHttp\Exception\TransferException;
 
 /**
@@ -103,15 +104,11 @@ function image_auto_tag_entity_presave(EntityInterface $entity) {
         $queue->createItem($item);
         return;
       }
-      // The Image Auto Tag service.
-      $imageAutoTag = \Drupal::service('image_auto_tag');
-      $peopleEntities = $imageAutoTag->detectAndIdentifyFaces($entity, $fieldDefinition);
-      if (!empty($peopleEntities)) {
-        // Apply this as the target field value.
-        $targetTagField = $fieldDefinition->getThirdPartySetting('image_auto_tag', 'tag_field');
-        $entity->set($targetTagField, $peopleEntities);
-      }
-      $count = count($peopleEntities);
+      /** @var \Drupal\image_auto_tag\EntityOperations $imageAutoTagOperations */
+      $imageAutoTagOperations = \Drupal::service('image_auto_tag.entity_operations');
+      $imageAutoTagOperations->findFacesAndTag($entity, $fieldDefinition);
+      // Set a message.
+      $count = $entity->{$fieldName}->count();
       \Drupal::messenger()->addStatus("Detected {$count} faces.");
     }
   }
@@ -166,7 +163,7 @@ function _image_auto_tag_entity_post_save(EntityInterface $entity) {
       return;
     }
     // Image Auto Tag service.
-    /** @var \Drupal\image_auto_tag\ImageAutoTag $imageAutoTag */
+    /** @var ImageAutoTagInterface $imageAutoTag */
     $imageAutoTag = \Drupal::service('image_auto_tag');
     // Do we have a person record yet?
     $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
