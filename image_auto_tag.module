@@ -88,6 +88,21 @@ function image_auto_tag_entity_presave(EntityInterface $entity) {
       $fieldDefinition->getThirdPartySetting('image_auto_tag', 'detect_faces') &&
       (!isset($entity->original) || $entity->get($fieldName)->entity->id() !== $entity->original->get($fieldName)->entity->id())
     ) {
+      // If this should be processed asynchronously, queue it and return.
+      if (\Drupal::config('image_auto_tag.settings')->get('synchronous_mode') === FALSE) {
+        // Queue processing for later.
+        /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
+        $queue_factory = \Drupal::service('queue');
+        /** @var \Drupal\Core\Queue\QueueInterface $queue */
+        $queue = $queue_factory->get('image_auto_tag_detect_faces');
+        $item = [
+          'entityId' => $entity->id(),
+          'entityType' => $entity->getEntityTypeId(),
+          'fieldName' => $fieldName,
+        ];
+        $queue->createItem($item);
+        return;
+      }
       // The Image Auto Tag service.
       $imageAutoTag = \Drupal::service('image_auto_tag');
       $peopleEntities = $imageAutoTag->detectAndIdentifyFaces($entity, $fieldDefinition);
@@ -136,6 +151,20 @@ function _image_auto_tag_entity_post_save(EntityInterface $entity) {
   list($targetEntityType, $targetEntityBundle) = explode('.', $targetEntityBundleString);
   // If the entity is our "people" entity, check faces.
   if ($entity->getEntityTypeId() === $targetEntityType && $entity->bundle() === $targetEntityBundle) {
+    // If this should be processed asynchronously, queue it and return.
+    if (\Drupal::config('image_auto_tag.settings')->get('synchronous_mode') === FALSE) {
+      // Queue processing for later.
+      /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
+      $queue_factory = \Drupal::service('queue');
+      /** @var \Drupal\Core\Queue\QueueInterface $queue */
+      $queue = $queue_factory->get('image_auto_tag_process_person');
+      $item = [
+        'entityId' => $entity->id(),
+        'entityType' => $entity->getEntityTypeId(),
+      ];
+      $queue->createItem($item);
+      return;
+    }
     // Image Auto Tag service.
     /** @var \Drupal\image_auto_tag\ImageAutoTag $imageAutoTag */
     $imageAutoTag = \Drupal::service('image_auto_tag');
@@ -223,6 +252,20 @@ function _image_auto_tag_entity_post_save(EntityInterface $entity) {
  */
 function image_auto_tag_entity_delete(EntityInterface $entity) {
   if ($entity instanceof ContentEntityInterface) {
+    // If this should be processed asynchronously, queue it and return.
+    if (\Drupal::config('image_auto_tag.settings')->get('synchronous_mode') === FALSE) {
+      // Queue processing for later.
+      /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
+      $queue_factory = \Drupal::service('queue');
+      /** @var \Drupal\Core\Queue\QueueInterface $queue */
+      $queue = $queue_factory->get('image_auto_tag_deleted_entity');
+      $item = [
+        'entityId' => $entity->id(),
+        'entityType' => $entity->getEntityTypeId(),
+      ];
+      $queue->createItem($item);
+      return;
+    }
     $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
       ->condition('local_id', $entity->id())
       ->condition('local_entity_type', $entity->getEntityTypeId())
@@ -231,6 +274,7 @@ function image_auto_tag_entity_delete(EntityInterface $entity) {
       /** @var \Drupal\image_auto_tag\Entity\PersonMap $personMaps */
       $personMaps = PersonMap::loadMultiple($personMapResult);
       foreach ($personMaps as $personMap) {
+        // @todo: implement this.
         $personMap->delete();
       }
     }
