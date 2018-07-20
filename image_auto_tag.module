@@ -167,7 +167,7 @@ function _image_auto_tag_entity_post_save(EntityInterface $entity) {
     try {
       $entityOperations->syncPerson($entity);
     }
-    catch (TransferException $e) {
+    catch (\Exception $e) {
       \Drupal::messenger()->addWarning(t('Unable to submit face images to Azure for processing. Error: %code : %msg.',
         [
           '%code' => $e->getCode(),
