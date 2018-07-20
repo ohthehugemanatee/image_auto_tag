@@ -199,17 +199,7 @@ function image_auto_tag_entity_delete(EntityInterface $entity) {
       $queue->createItem($item);
       return;
     }
-    $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
-      ->condition('local_id', $entity->id())
-      ->condition('local_entity_type', $entity->getEntityTypeId())
-      ->execute();
-    if ($personMapResult > 0) {
-      /** @var \Drupal\image_auto_tag\Entity\PersonMap $personMaps */
-      $personMaps = PersonMap::loadMultiple($personMapResult);
-      foreach ($personMaps as $personMap) {
-        // @todo: implement this.
-        $personMap->delete();
-      }
-    }
+    $entityOperations = \Drupal::service('image_auto_tag.entity_operations');
+    $entityOperations->deleteEntity($entity);
   }
 }

@@ -147,4 +147,27 @@ class EntityOperations {
       }
     }
   }
+
+  /**
+   * Process a deleted entity.
+   *
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *   The entity being deleted.
+   */
+  public function deleteEntity(ContentEntityInterface $entity) : void {
+    $personMapStorage = $this->entityTypeManager->getStorage('image_auto_tag_person_map');
+    $personMapResult = $personMapStorage->getQuery()
+      ->condition('local_id', $entity->id())
+      ->condition('local_entity_type', $entity->getEntityTypeId())
+      ->execute();
+    if ($personMapResult > 0) {
+      /** @var \Drupal\image_auto_tag\Entity\PersonMap $personMaps */
+      $personMaps = $personMapStorage->loadMultiple($personMapResult);
+      foreach ($personMaps as $personMap) {
+        $personMap->delete();
+        // @todo: Delete remote person object, too.
+      }
+    }
+  }
+
 }
