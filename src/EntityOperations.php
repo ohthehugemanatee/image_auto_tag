@@ -16,7 +16,7 @@ use Drupal\Core\Field\FieldDefinitionInterface;
  *
  * @package Drupal\image_auto_tag
  */
-class EntityOperations {
+class EntityOperations implements EntityOperationsInterface {
 
   /**
    * Image Auto Tag service.
@@ -39,6 +39,9 @@ class EntityOperations {
    */
   protected $config;
 
+  /**
+   * {@inheritdoc}
+   */
   public function __construct(ImageAutoTagInterface $imageAutoTag, EntityTypeManagerInterface $entityTypeManager, ConfigFactoryInterface $configFactory) {
     $this->imageAutoTag = $imageAutoTag;
     $this->entityTypeManager = $entityTypeManager;
@@ -46,15 +49,7 @@ class EntityOperations {
   }
 
   /**
-   * Do face detection on a given entity and image field, and tag appropriately.
-   *
-   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
-   *   The target entity to be tagged.
-   * @param \Drupal\Core\Field\FieldDefinitionInterface $fieldDefinition
-   *   The image field to use for face detection.
-   *
-   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
-   * @throws \GuzzleHttp\Exception\GuzzleException
+   * {@inheritdoc}
    */
   public function findFacesAndTag(ContentEntityInterface $entity, FieldDefinitionInterface $fieldDefinition) : void {
     $peopleEntities = $this->imageAutoTag->detectAndIdentifyFaces($entity, $fieldDefinition);
@@ -66,17 +61,7 @@ class EntityOperations {
   }
 
   /**
-   * Synchronize a local Person record with the remote service.
-   *
-   * This is one-way sync only, from local to remote.
-   *
-   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
-   *   The "Person" entity to be synced.
-   *
-   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
-   * @throws \Drupal\Core\Entity\EntityStorageException
-   * @throws \Drupal\Core\TypedData\Exception\MissingDataException
-   * @throws \GuzzleHttp\Exception\GuzzleException
+   * {@inheritdoc}
    */
   public function syncPerson(ContentEntityInterface $entity) : void {
     $personMapStorage = $this->entityTypeManager->getStorage('image_auto_tag_person_map');
@@ -149,10 +134,7 @@ class EntityOperations {
   }
 
   /**
-   * Process a deleted entity.
-   *
-   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
-   *   The entity being deleted.
+   * {@inheritdoc}
    */
   public function deleteEntity(ContentEntityInterface $entity) : void {
     $personMapStorage = $this->entityTypeManager->getStorage('image_auto_tag_person_map');
