@@ -1,10 +1,6 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: ohthehugemanatee
- * Date: 7/20/18
- * Time: 4:20 PM
- */
+
+declare(strict_types = 1);
 
 namespace Drupal\image_auto_tag;
 
