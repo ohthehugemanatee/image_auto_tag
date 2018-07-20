@@ -10,7 +10,6 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\image_auto_tag\Entity\PersonMap;
 
-
 /**
  * ImageAutoTag service definition.
  *
