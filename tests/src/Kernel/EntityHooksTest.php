@@ -85,16 +85,14 @@ class EntityHooksTest extends KernelTestBase {
     // We'll check service status three times.
     $azure->serviceStatus()
       ->willReturn(TRUE)
-      ->shouldBeCalledTimes(4);
+      ->shouldBeCalledTimes(1);
     // We'll create one person, and return a person_id.
-    $personReturn = new \stdClass();
-    $personReturn->personId = 'dummy_person_id';
+    $personReturn = 'dummy_person_id';
     $azure->createPerson(AzureCognitiveServices::PEOPLE_GROUP, 'Test person')
       ->shouldBeCalled()
       ->willReturn($personReturn);
     // We'll load one face onto the person record, and return a persistent face id.
-    $faceReturn = new \stdClass();
-    $faceReturn->persistedFaceId = 'dummy_persistent_face_id';
+    $faceReturn = 'dummy_persistent_face_id';
     $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, 'dummy_person_id', 'public://fakefile.jpeg')
       ->shouldBeCalled()
       ->willReturn($faceReturn);
