@@ -149,7 +149,7 @@ function _image_auto_tag_entity_post_save(EntityInterface $entity) {
   // If the entity is our "people" entity, check faces.
   if ($entity->getEntityTypeId() === $targetEntityType && $entity->bundle() === $targetEntityBundle) {
     // If this should be processed asynchronously, queue it and return.
-    if (\Drupal::config('image_auto_tag.settings')->get('synchronous_mode') === FALSE) {
+    if ($config->get('synchronous_mode') === FALSE) {
       // Queue processing for later.
       /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
       $queue_factory = \Drupal::service('queue');
@@ -162,82 +162,18 @@ function _image_auto_tag_entity_post_save(EntityInterface $entity) {
       $queue->createItem($item);
       return;
     }
-    // Image Auto Tag service.
-    /** @var ImageAutoTagInterface $imageAutoTag */
-    $imageAutoTag = \Drupal::service('image_auto_tag');
-    // Do we have a person record yet?
-    $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
-      ->condition('local_id', $entity->id())
-      ->condition('local_entity_type', $entity->getEntityTypeId())
-      ->execute();
-    // If we don't have a record, create one on Azure.
-    if ($personMapResult === []) {
-      $imageAutoTag->createPerson($entity);
-      $imageAutoTag->createFaces($entity);
+    /** @var \Drupal\image_auto_tag\EntityOperations $entityOperations */
+    $entityOperations = \Drupal::service('image_auto_tag.entity_operations');
+    try {
+      $entityOperations->syncPerson($entity);
     }
-    else {
-      /** @var \Drupal\image_auto_tag\Entity\PersonMap[] $personMaps */
-      $personMaps = PersonMap::loadMultiple($personMapResult);
-      $personMap = reset($personMaps);
-      // Otherwise, update the existing Person on Azure.
-      if ($entity->label() !== $entity->original->label()) {
-        // @todo: Do this through the generic ImageAutoTag service.
-        $azure = \Drupal::service('image_auto_tag.azure');
-        $azure->updatePerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $entity->label());
-      }
-      // If the faces image field value has changed.
-      $targetImageField = explode('.', $config->get('person_image_field'))[1];
-      $imageFilesArray = $entity->get($targetImageField)->getValue();
-      if ($imageFilesArray !== $entity->original->get($targetImageField)->getValue()) {
-        // Make sure all the local images exist on the remote.
-        foreach ($imageFilesArray as $index => $value) {
-          /** @var \Drupal\Core\Image\Image $image */
-          $image = $entity->get($targetImageField)->get($index);
-          $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
-            ->condition('local_id', $image->entity->id())
-            ->condition('local_entity_type', 'file')
-            ->execute();
-          // If this image doesn't have a personMap yet, upload it as a face.
-          if ($personMapResult === []) {
-            try {
-              $imagePath = $image->entity->getFileUri();
-              $faceId = $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $imagePath);
-              PersonMap::create([
-                'foreign_id' => $faceId->persistedFaceId,
-                'local_id' => $image->entity->id(),
-                'local_entity_type' => 'file',
-              ])->save();
-            }
-            catch (TransferException $e) {
-              \Drupal::messenger()->addWarning(t('Unable to submit face images to Azure for processing. Error: %code : %msg.',
-                [
-                  '%code' => $e->getCode(),
-                  '%msg' => $e->getMessage(),
-                ]
-              ));
-            }
-          }
-        }
-        // Delete any remote images that aren't on local.
-        $personRecord = $azure->getPerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId());
-        $faceIds = $personRecord->persistedFaceIds;
-        $personMapResult = \Drupal::entityQuery('image_auto_tag_person_map')
-          ->condition('foreign_id', $faceIds, 'IN')
-          ->condition('local_entity_type', 'file')
-          ->execute();
-        if (count($personMapResult) !== count($faceIds)) {
-          $personMaps = PersonMap::loadMultiple($personMapResult);
-          $foreignIds = [];
-          foreach ($personMaps as $personMap) {
-            $foreignIds[] = $personMap->getForeignId();
-          }
-          $missingFaces = array_diff($foreignIds, $faceIds);
-          // Delete any faces that exist on foreign, but not local.
-          foreach ($missingFaces as $missingFace) {
-            $azure->deleteFace(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $missingFace);
-          }
-        }
-      }
+    catch (TransferException $e) {
+      \Drupal::messenger()->addWarning(t('Unable to submit face images to Azure for processing. Error: %code : %msg.',
+        [
+          '%code' => $e->getCode(),
+          '%msg' => $e->getMessage(),
+        ]
+      ));
     }
   }
 }
