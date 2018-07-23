@@ -59,7 +59,7 @@ Notes
 Next Steps
 ---
 
-* Asynchronous mode - training and detection should happen on cron.
+* ~~Asynchronous mode - training and detection should happen on cron.~~
 * Batch API for submission and training "now", a la search API.
 * Refactor into a plugin-based system, get OpenFace or similar working as a second plugin.
 * More tests. You can always use more tests!
