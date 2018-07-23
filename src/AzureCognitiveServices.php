@@ -134,7 +134,7 @@ class AzureCognitiveServices {
   }
 
   /**
-   * Create a person group.
+   * Create the person group.
    *
    * @param string $id
    *   The Id of the proposed person group.
@@ -159,34 +159,16 @@ class AzureCognitiveServices {
   /**
    * Delete person group.
    *
-   * @param string $id
-   *   The PersonGroup Id to delete.
-   *
    * @return bool
    *   TRUE on success, FALSE on failure.
    *
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong in the HTTP request.
    */
-  public function deletePersonGroup(string $id) : bool {
+  public function deletePersonGroup() : bool {
     $response = $this->httpClient->request('DELETE',
-      'persongroups/' . $id);
+      'persongroups/' . self::PEOPLE_GROUP);
     return empty($response->getBody());
-  }
-
-  /**
-   * List person Groups.
-   *
-   * @return array
-   *   The list of groups.
-   *
-   * @throws \GuzzleHttp\Exception\GuzzleException
-   *   If anything goes wrong with the HTTP request.
-   */
-  public function listPersonGroups() : array {
-    $response = $this->httpClient->request('GET',
-      'persongroups');
-    return json_decode((string) $response->getBody());
   }
 
   /**
@@ -208,10 +190,8 @@ class AzureCognitiveServices {
   }
 
   /**
-   * Create a person in a group.
+   * Create a person record.
    *
-   * @param string $personGroupId
-   *   The Id of the personGroup in which to create the person.
    * @param string $name
    *   The name to assign to the new person.
    *
@@ -221,7 +201,8 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function createPerson(string $personGroupId, string $name) : string {
+  public function createPerson(string $name) : string {
+    $personGroupId = self::PEOPLE_GROUP;
     $response = $this->httpClient->request('POST', 'persongroups/' . $personGroupId . '/persons', [
       'body' => json_encode([
         'name' => $name,
@@ -233,8 +214,6 @@ class AzureCognitiveServices {
   /**
    * Get information for a specific person.
    *
-   * @param string $personGroupId
-   *   The desired person's PersonGroup Id.
    * @param string $personId
    *   The desired person's Person Id.
    *
@@ -249,16 +228,14 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function getPerson(string $personGroupId, string $personId) : \stdClass {
-    $response = $this->httpClient->request('GET', 'persongroups/' . $personGroupId . '/persons/' . $personId);
+  public function getPerson(string $personId) : \stdClass {
+    $response = $this->httpClient->request('GET', 'persongroups/' . self::PEOPLE_GROUP . '/persons/' . $personId);
     return json_decode((string) $response->getBody());
   }
 
   /**
    * Update an existing person.
    *
-   * @param string $personGroupId
-   *   The Id of the personGroup to which the Person belongs.
    * @param string $personId
    *   The Id of the Person to update.
    * @param string $name
@@ -270,8 +247,8 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   All errors are reported as Guzzle exceptions.
    */
-  public function updatePerson(string $personGroupId, string $personId, string $name) {
-    $response = $this->httpClient->request('PATCH', 'persongroups/' . $personGroupId . '/persons/' . $personId, [
+  public function updatePerson(string $personId, string $name) {
+    $response = $this->httpClient->request('PATCH', 'persongroups/' . self::PEOPLE_GROUP . '/persons/' . $personId, [
       'body' => json_encode([
         'name' => $name,
       ]),
@@ -282,18 +259,15 @@ class AzureCognitiveServices {
   /**
    * List people in a personGroup.
    *
-   * @param string $personGroupId
-   *   The target person Group Id.
-   *
    * @return array
    *   The list of person Ids.
    *
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function listPeople(string $personGroupId): array {
+  public function listPeople(): array {
     $response = $this->httpClient->request('GET',
-      'persongroups/' . $personGroupId . '/persons');
+      'persongroups/' . self::PEOPLE_GROUP . '/persons');
 
     return json_decode((string) $response->getBody());
   }
@@ -301,8 +275,6 @@ class AzureCognitiveServices {
   /**
    * Add a face to a person record.
    *
-   * @param string $personGroupId
-   *   The person's personGroupId.
    * @param string $personId
    *   The person's personId.
    * @param string $file
@@ -314,7 +286,8 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function addFace(string $personGroupId, string $personId, string $file) : string{
+  public function addFace(string $personId, string $file) : string{
+    $personGroupId = self::PEOPLE_GROUP;
     $response = $this->httpClient->request('POST',
       "persongroups/{$personGroupId}/persons/{$personId}/persistedFaces", [
         'headers' => [
@@ -329,8 +302,6 @@ class AzureCognitiveServices {
   /**
    * Delete a face from a person record.
    *
-   * @param string $personGroupId
-   *   The person's personGroupId.
    * @param string $personId
    *   The person's personId.
    * @param string $faceId
@@ -342,7 +313,8 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function deleteFace(string $personGroupId, string $personId, string $faceId) {
+  public function deleteFace(string $personId, string $faceId) {
+    $personGroupId = self::PEOPLE_GROUP;
     $response = $this->httpClient->request('POST',
       "persongroups/{$personGroupId}/persons/{$personId}/persistedFaces/{$faceId}");
 
@@ -350,10 +322,7 @@ class AzureCognitiveServices {
   }
 
   /**
-   * Train a person group.
-   *
-   * @param string $id
-   *   The person group Id.
+   * Train people records.
    *
    * @return bool
    *   TRUE on success, FALSE on failure.
@@ -361,17 +330,14 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function trainPersonGroup(string $id) : bool {
+  public function trainPersonGroup() : bool {
     $response = $this->httpClient->request('POST',
-      'persongroups/' . $id . '/train');
+      'persongroups/' . self::PEOPLE_GROUP . '/train');
     return empty($response->getBody());
   }
 
   /**
    * Check training status.
-   *
-   * @param string $id
-   *   The Person Group Id for which to check training status.
    *
    * @return \stdClass
    *   The status message.
@@ -379,9 +345,9 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function getPersonGroupTrainingStatus(string $id) : \stdClass {
+  public function getTrainingStatus() : \stdClass {
     $response = $this->httpClient->request('GET',
-      'persongroups/' . $id . '/training');
+      'persongroups/' . self::PEOPLE_GROUP . '/training');
     return json_decode((string) $response->getBody());
   }
 
@@ -390,8 +356,6 @@ class AzureCognitiveServices {
    *
    * @param array $faces
    *   An array of face IDs to be identified.
-   * @param string $personGroup
-   *   The personGroup whose persons will be matched to the face IDs.
    *
    * @return array
    *   The face identification result.
@@ -399,11 +363,11 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong with the HTTP request.
    */
-  public function identifyFaces(array $faces, string $personGroup) : array {
+  public function identifyFaces(array $faces) : array {
     $response = $this->httpClient->request('POST', 'identify', [
       'body' => json_encode([
         'faceIds' => $faces,
-        'personGroupId' => $personGroup,
+        'personGroupId' => self::PEOPLE_GROUP,
       ]),
     ]);
 
