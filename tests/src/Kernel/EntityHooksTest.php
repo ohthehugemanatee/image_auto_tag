@@ -88,12 +88,12 @@ class EntityHooksTest extends KernelTestBase {
       ->shouldBeCalledTimes(1);
     // We'll create one person, and return a person_id.
     $personReturn = 'dummy_person_id';
-    $azure->createPerson(AzureCognitiveServices::PEOPLE_GROUP, 'Test person')
+    $azure->createPerson('Test person')
       ->shouldBeCalled()
       ->willReturn($personReturn);
     // We'll load one face onto the person record, and return a persistent face id.
     $faceReturn = 'dummy_persistent_face_id';
-    $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, 'dummy_person_id', 'public://fakefile.jpeg')
+    $azure->addFace('dummy_person_id', 'public://fakefile.jpeg')
       ->shouldBeCalled()
       ->willReturn($faceReturn);
     // We'll run detection on one Image file, and return one detected face.
@@ -115,7 +115,7 @@ class EntityHooksTest extends KernelTestBase {
             ]
         }
     ]');
-    $azure->identifyFaces(['dummy_detected_face_id'], AzureCognitiveServices::PEOPLE_GROUP)
+    $azure->identifyFaces(['dummy_detected_face_id'])
       ->ShouldBeCalledTimes(1)
       ->willReturn($identifyReturn);
 

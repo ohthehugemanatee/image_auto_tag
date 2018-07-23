@@ -70,7 +70,7 @@ class EntityOperations implements EntityOperationsInterface {
       ->condition('local_id', $entity->id())
       ->condition('local_entity_type', $entity->getEntityTypeId())
       ->execute();
-    // If we don't have a record, create one on Azure.
+    // If we don't have a record, create one on the remote service.
     if ($personMapResult === []) {
       $this->imageAutoTag->createPerson($entity);
       $this->imageAutoTag->createFaces($entity);
@@ -79,11 +79,10 @@ class EntityOperations implements EntityOperationsInterface {
       /** @var \Drupal\image_auto_tag\Entity\PersonMap[] $personMaps */
       $personMaps = $personMapStorage->loadMultiple($personMapResult);
       $personMap = reset($personMaps);
-      // Otherwise, update the existing Person on Azure.
+      // Otherwise, update the existing Person on the remote service.
       if ($entity->label() !== $entity->original->label()) {
         // @todo: Do this through the generic ImageAutoTag service.
-        $azure = \Drupal::service('image_auto_tag.azure');
-        $azure->updatePerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $entity->label());
+        $this->imageAutoTag->updatePerson($personMap->getForeignId(), $entity->label());
       }
       // If the value of the faces image field has changed.
       $targetImageField = explode('.', $this->config->get('person_image_field'))[1];
@@ -100,7 +99,7 @@ class EntityOperations implements EntityOperationsInterface {
           // If this image doesn't have a personMap yet, upload it as a face.
           if ($personMapResult === []) {
             $imagePath = $image->entity->getFileUri();
-            $faceId = $azure->addFace(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $imagePath);
+            $faceId = $this->imageAutoTag->addFace($personMap->getForeignId(), $imagePath);
             $personMapStorage->create([
               'foreign_id' => $faceId->persistedFaceId,
               'local_id' => $image->entity->id(),
@@ -110,7 +109,7 @@ class EntityOperations implements EntityOperationsInterface {
         }
         // Delete any remote images that aren't on local.
         // @todo: Move to generic ImageAutoTag service.
-        $personRecord = $azure->getPerson(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId());
+        $personRecord = $this->imageAutoTag->getPerson($personMap->getForeignId());
         $faceIds = $personRecord->persistedFaceIds;
         $personMapResult = $personMapStorage->getQuery()
           ->condition('foreign_id', $faceIds, 'IN')
@@ -125,8 +124,7 @@ class EntityOperations implements EntityOperationsInterface {
           // Delete the faces that exist on foreign, but not local.
           $missingFaces = array_diff($foreignIds, $faceIds);
           foreach ($missingFaces as $missingFace) {
-            // @todo: Move to generic ImageAutoTag service.
-            $azure->deleteFace(AzureCognitiveServices::PEOPLE_GROUP, $personMap->getForeignId(), $missingFace);
+            $this->imageAutoTag->deleteFace($personMap->getForeignId(), $missingFace);
           }
         }
       }

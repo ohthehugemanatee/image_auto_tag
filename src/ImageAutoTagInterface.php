@@ -35,6 +35,51 @@ interface ImageAutoTagInterface {
    */
   public function createPerson(ContentEntityInterface $entity): void;
 
+
+  /**
+   * Get information for a specific person.
+   *
+   * @param string $personId
+   *   The desired person's Person Id.
+   *
+   * @return \stdClass
+   *   The returned data from Azure. An array with keys:
+   *    - personId: (string) the personId of the retrieved person.
+   *    - persistedFaceIds: (array) persistedFaceIds of registered Faces in the
+   *      person.
+   *    - name: (string) The Person's display name.
+   *    - userData (string) Any user-provided data attached to the person.
+   */
+  public function getPerson(string $personId) : \stdClass;
+
+  /**
+   * Update an existing person.
+   *
+   * @param string $personId
+   *   The Id of the Person to update.
+   * @param string $name
+   *   The new name of the Person.
+   *
+   * @return bool
+   *   TRUE on success, throws an exception on failure.
+   */
+  public function updatePerson(string $personId, string $name) : bool;
+
+  /**
+   * Add a face to a person record.
+   *
+   * @param string $personId
+   *   The person's personId.
+   * @param string $file
+   *   The image file of the person's face. It should only include one face.
+   *
+   * @return string
+   *   The face Id if successful, empty if not.
+   *
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   */
+  public function addFace(string $personId, string $file) : string;
+
   /**
    * Create faces for a given "Person" entity.
    *
@@ -47,6 +92,22 @@ interface ImageAutoTagInterface {
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
   public function createFaces(ContentEntityInterface $entity): void;
+
+  /**
+   * Delete a face from a person record.
+   *
+   * @param string $personId
+   *   The person's personId.
+   * @param string $faceId
+   *   The persisted Id of the face to delete.
+   *
+   * @return string
+   *   The face Id if successful, empty if not.
+   *
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   *   If anything goes wrong with the HTTP request.
+   */
+  public function deleteFace(string $personId, string $faceId);
 
   /**
    * Run face detection (not identification!) on a given entity and image field.

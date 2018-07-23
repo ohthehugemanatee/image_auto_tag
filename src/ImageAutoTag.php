@@ -78,13 +78,34 @@ class ImageAutoTag implements ImageAutoTagInterface {
    */
   public function createPerson(ContentEntityInterface $entity) : void {
     // Create the Person record.
-    $personId = $this->azureCognitiveServices->createPerson(AzureCognitiveServices::PEOPLE_GROUP, $entity->label());
+    $personId = $this->azureCognitiveServices->createPerson($entity->label());
     // Create the personMap record.
     PersonMap::create([
       'foreign_id' => $personId,
       'local_id' => $entity->id(),
       'local_entity_type' => $entity->getEntityTypeId(),
     ])->save();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPerson(string $personId) : \stdClass {
+    return $this->azureCognitiveServices->getPerson($personId);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function updatePerson(string $personId, string $name) : bool {
+    return $this->azureCognitiveServices->updatePerson($personId, $name);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function addFace(string $personId, string $file) : string {
+    return $this->azureCognitiveServices->addFace($personId, $file);
   }
 
   /**
@@ -104,6 +125,7 @@ class ImageAutoTag implements ImageAutoTagInterface {
       // @todo: Throw an exception?
       return;
     }
+    /** @var \Drupal\image_auto_tag\Entity\PersonMapInterface $personMap */
     $personMap = $personMapStorage->load(reset($personMapResult));
     $personId = $personMap->getForeignId();
     if ($this->getServiceStatus() === FALSE) {
@@ -116,13 +138,20 @@ class ImageAutoTag implements ImageAutoTagInterface {
       // @todo: Shouldn't this be $image->getSource()?
       $imagePath = $image->entity->getFileUri();
       // @todo: Custom exception.
-      $faceId = $this->azureCognitiveServices->addFace(AzureCognitiveServices::PEOPLE_GROUP, $personId, $imagePath);
+      $faceId = $this->azureCognitiveServices->addFace($personId, $imagePath);
       PersonMap::create([
         'foreign_id' => $faceId,
         'local_id' => $image->entity->id(),
         'local_entity_type' => 'file',
       ])->save();
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function deleteFace(string $personId, string $faceId) {
+    return $this->azureCognitiveServices->deleteFace($personId, $faceId);
   }
 
   /**
@@ -146,7 +175,7 @@ class ImageAutoTag implements ImageAutoTagInterface {
     if ($detectedFaces === []) {
       return [];
     }
-    $identifiedFaces = $this->azureCognitiveServices->identifyFaces(array_slice($detectedFaces, 0, 10), AzureCognitiveServices::PEOPLE_GROUP);
+    $identifiedFaces = $this->azureCognitiveServices->identifyFaces(\array_slice($detectedFaces, 0, 10));
     if ($identifiedFaces === []) {
       return [];
     }
