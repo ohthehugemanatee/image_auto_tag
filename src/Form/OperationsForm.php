@@ -7,6 +7,7 @@ namespace Drupal\image_auto_tag\Form;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
+use Drupal\Core\Queue\QueueFactory;
 use Drupal\image_auto_tag\AzureCognitiveServices;
 use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -42,6 +43,20 @@ class OperationsForm extends FormBase {
   protected $entityTypeManager;
 
   /**
+   * Module configuration.
+   *
+   * @var \Drupal\Core\Config\ImmutableConfig
+   */
+  protected $config;
+
+  /**
+   * Queue Factory service.
+   *
+   * @var \Drupal\Core\Queue\QueueFactory
+   */
+  protected $queueFactory;
+
+  /**
    * SettingsForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -49,9 +64,11 @@ class OperationsForm extends FormBase {
    * @param \Drupal\image_auto_tag\AzureCognitiveServices $azureCognitiveServices
    *   Azure CogSer service.
    */
-  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices, EntityTypeManagerInterface $entityTypeManager) {
+  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices, EntityTypeManagerInterface $entityTypeManager, QueueFactory $queueFactory) {
     $this->azure = $azureCognitiveServices;
     $this->entityTypeManager = $entityTypeManager;
+    $this->config = $configFactory->get('image_auto_tag.settings');
+    $this->queueFactory = $queueFactory;
   }
 
   /**
@@ -61,7 +78,8 @@ class OperationsForm extends FormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('image_auto_tag.azure'),
-      $container->get('entity_type.manager')
+      $container->get('entity_type.manager'),
+      $container->get('queue')
     );
   }
 
@@ -77,7 +95,7 @@ class OperationsForm extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) : array {
     try {
-      $trainingStatus = $this->azure->getPersonGroupTrainingStatus(AzureCognitiveServices::PEOPLE_GROUP);
+      $trainingStatus = $this->azure->getTrainingStatus();
     }
     catch (TransferException $e) {
       if ($e->getCode() !== 404) {
@@ -97,7 +115,7 @@ class OperationsForm extends FormBase {
       }
     }
     $form['training_status'] = [
-      '#title' => t('Training status'),
+      '#title' => t('Remote Training status'),
       '#type' => 'item',
       '#description' => (string) $trainingStatus->status,
     ];
@@ -113,16 +131,77 @@ class OperationsForm extends FormBase {
       '#name' => 'train',
       '#submit' => [[$this, 'train']],
     ];
-    $form['reset'] = [
+
+    $form['queue_status'] = [
+      '#title' => $this->t('Queued actions'),
+      '#type' => 'item',
+      '#description' => $this->t('There are @people person, @detection detection, and @deletion deletion operations in the cron queue.',
+        [
+          '@people' => $this->queueFactory->get('image_auto_tag_process_person')->numberOfItems(),
+          '@detection' => $this->queueFactory->get('image_auto_tag_detect_faces')->numberOfItems(),
+          '@deletion' => $this->queueFactory->get('image_auto_tag_deleted_entity')->numberOfItems(),
+        ]
+      ),
+    ];
+
+    $form['run_queues'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Reset and re-submit'),
+      '#value' => $this->t('Run queues now'),
+      '#name' => 'run_queues',
+      '#submit' => [[$this, 'runQueues']],
+    ];
+
+    // Get the "person" entity type and bundle.
+    $personEntityBundleString = $this->config->get('person_entity_bundle');
+    list($personEntityType, $personEntityBundle) = explode('.', $personEntityBundleString);
+    // Count the number of people, and the number of people maps.
+    $peopleEntityCount = $this->entityTypeManager->getStorage($personEntityType)->getQuery()
+      ->condition('type', $personEntityBundle)
+      ->count()
+      ->execute();
+    $peopleMapCount = $this->entityTypeManager->getStorage('image_auto_tag_person_map')->getQuery()
+      ->condition('local_entity_type', $personEntityType)
+      ->count()
+      ->execute();
+    // Progress bar.
+    $form['submitted_people'] = [
+      '#title' => $this->t('People submitted'),
+      '#type' => 'item',
+      '#theme' => 'progress_bar',
+      '#percent' => $peopleEntityCount ? (int) (100 * $peopleMapCount / $peopleEntityCount) : 100,
+      '#message' => $this->t('@indexed/@total submitted', ['@indexed' => $peopleMapCount, '@total' => $peopleEntityCount]),
+      // Custom stylesheet to remove background animation from the progress bar.
+      '#prefix' => '<div class="image-auto-tag clearfix">',
+      '#suffix' => '</div>',
+      '#attached' => [
+        'library' => [
+          'image_auto_tag/drupal.image_auto_tag.admin_css',
+        ],
+      ],
+    ];
+
+    $form['submit_missing_people'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Submit missing people'),
+      '#description' => $this->t('Submit unsubmitted people'),
+      '#submit' => [[$this, 'submitMissingPeople']],
+    ];
+
+    $form['reset_people'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Reset/re-submit all people now'),
       '#description' => $this->t('Resets all saved data and re-submits everything'),
       '#submit' => [[$this, 'reset']],
     ];
 
+    $form['submit_to_queue'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Reset/re-submit all people on cron'),
+      '#description' => $this->t('Reset and add all people to the cron queue for processing.'),
+      '#submit' => [[$this, 'reset']],
+    ];
     return $form;
   }
-
 
   /**
    * Submit handler for the "Train" button.
@@ -130,6 +209,26 @@ class OperationsForm extends FormBase {
   public function train(array &$form, FormStateInterface $form_state) {
     $this->azure->trainPersonGroup(AzureCognitiveServices::PEOPLE_GROUP);
     $this->messenger()->addStatus('Training request submitted.');
+  }
+
+  /**
+   * Submit handler for the "Run queues now" button.
+   *
+   * @param array $form
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   */
+  public function runQueues(array &$form, FormStateInterface $form_state) {
+    $this->messenger()->addWarning('Sorry, running queues is not implemented yet.');
+  }
+
+  /**
+   * Submit handler for the "Submit missing people" button.
+   *
+   * @param array $form
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   */
+  public function submitMissingPeople(array &$form, FormStateInterface $form_state) {
+    $this->messenger()->addWarning('Note: Re-submitting is not implemented yet. You can manually re-submit content by saving it.');
   }
 
   /**
@@ -142,8 +241,8 @@ class OperationsForm extends FormBase {
    */
   public function reset(array &$form, FormStateInterface $form_state) {
     try {
-      $this->azure->deletePersonGroup(AzureCognitiveServices::PEOPLE_GROUP);
-      $this->azure->createPersonGroup(AzureCognitiveServices::PEOPLE_GROUP, 'Automatically created group for Drupal Image Auto Tag module.');
+      $this->azure->deletePersonGroup();
+      $this->azure->createPersonGroup('Automatically created group for Drupal Image Auto Tag module.');
     }
     catch (TransferException $e) {
       $this->messenger()->addError("Could not reset remote data. Code {$e->getCode()}: {$e->getMessage()}");
@@ -154,7 +253,6 @@ class OperationsForm extends FormBase {
     $personMapStorage->delete($allPersonMaps);
     $this->messenger()->addStatus('All training records deleted.');
     $this->messenger()->addWarning('Note: Re-submitting is not implemented yet. You can manually re-submit content by saving it.');
-
   }
 
 }

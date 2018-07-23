@@ -1,0 +1,4 @@
+/* Disable animation from progress bar */
+.image-auto-tag .progress__bar {
+    background-image: none;
+}

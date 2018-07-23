@@ -1,0 +1,5 @@
+drupal.image_auto_tag.admin_css:
+  version: VERSION
+  css:
+    theme:
+      css/image_auto_tag.admin.css: {}
