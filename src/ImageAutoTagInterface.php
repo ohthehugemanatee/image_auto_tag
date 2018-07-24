@@ -66,6 +66,10 @@ interface ImageAutoTagInterface {
   public function updatePerson(string $personId, string $name) : bool;
 
   /**
+   * Run training on the remote service.
+   */
+  public function trainPeople() : void;
+  /**
    * Add a face to a person record.
    *
    * @param string $personId
@@ -109,6 +113,15 @@ interface ImageAutoTagInterface {
    */
   public function deleteFace(string $personId, string $faceId);
 
+  /**
+   * Delete a person record from the remote service.
+   *
+   * @param string $personId
+   *   The person's personId.
+   *
+   * @return mixed
+   */
+  public function deletePerson(string $personId);
   /**
    * Run face detection (not identification!) on a given entity and image field.
    *

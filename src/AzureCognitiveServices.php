@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Drupal\image_auto_tag;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Http\ClientFactory;
 use GuzzleHttp\Exception\TransferException;
 
@@ -18,6 +19,10 @@ use GuzzleHttp\Exception\TransferException;
 class AzureCognitiveServices {
 
   const PEOPLE_GROUP = 'drupal_image_auto_tag_people';
+
+  public static function submitPerson(ContentEntityInterface $entity) {
+
+  }
 
   /**
    * The HTTP client.
@@ -267,6 +272,13 @@ class AzureCognitiveServices {
       ]),
     ]);
     return $response->getStatusCode() === 200;
+  }
+
+  public function deletePerson(string $personId) : void {
+    $personGroupId = self::PEOPLE_GROUP;
+    $this->httpClient->request('DELETE',
+      "persongroups/{$personGroupId}/persons/{$personId}");
+
   }
 
   /**

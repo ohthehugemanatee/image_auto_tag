@@ -10,7 +10,9 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 
 /**
- * Operations used in entity hook implementations.
+ * Image Auto Tag operations, wrapped so you can call them with Entities.
+ *
+ * Useful for entity and queue hooks.
  *
  * Because we want to reuse the same code on entity hooks and on cron.
  *
@@ -74,14 +76,21 @@ class EntityOperations implements EntityOperationsInterface {
     if ($personMapResult === []) {
       $this->imageAutoTag->createPerson($entity);
       $this->imageAutoTag->createFaces($entity);
+      return;
     }
     else {
       /** @var \Drupal\image_auto_tag\Entity\PersonMap[] $personMaps */
       $personMaps = $personMapStorage->loadMultiple($personMapResult);
       $personMap = reset($personMaps);
+      // If we don't have the pre-save entity available, delete and re-create.
+      if (!isset($entity->original)) {
+        $this->imageAutoTag->deletePerson($personMap->getForeignId());
+        $this->imageAutoTag->createPerson($entity);
+        $this->imageAutoTag->createFaces($entity);
+        return;
+      }
       // Otherwise, update the existing Person on the remote service.
-      if ($entity->label() !== $entity->original->label()) {
-        // @todo: Do this through the generic ImageAutoTag service.
+      if (($entity->label() !== $entity->original->label())) {
         $this->imageAutoTag->updatePerson($personMap->getForeignId(), $entity->label());
       }
       // If the value of the faces image field has changed.

@@ -157,6 +157,13 @@ class ImageAutoTag implements ImageAutoTagInterface {
   /**
    * {@inheritdoc}
    */
+  public function deletePerson(string $personId) {
+    return $this->azureCognitiveServices->deletePerson($personId);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function detectFaces(ContentEntityInterface $entity, FieldDefinitionInterface $fieldDefinition) : array {
     $fileUri = $entity->{$fieldDefinition->getName()}->entity->getFileUri();
     $detectedFaces = $this->azureCognitiveServices->detectFaces($fileUri);
@@ -206,6 +213,13 @@ class ImageAutoTag implements ImageAutoTagInterface {
   public function detectAndIdentifyFaces(ContentEntityInterface $entity, FieldDefinitionInterface $fieldDefinition) : array {
     $detectedFaces = $this->detectFaces($entity, $fieldDefinition);
     return $this->identifyFaces($detectedFaces);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function trainPeople(): void {
+    $this->azureCognitiveServices->trainPersonGroup();
   }
 
 }

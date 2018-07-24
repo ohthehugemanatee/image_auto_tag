@@ -5,10 +5,12 @@ declare(strict_types = 1);
 namespace Drupal\image_auto_tag\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\image_auto_tag\AzureCognitiveServices;
+use Drupal\image_auto_tag\EntityOperations;
 use Drupal\image_auto_tag\EntityOperationsInterface;
 use Drupal\image_auto_tag\ImageAutoTag;
 use Drupal\image_auto_tag\ImageAutoTagInterface;
@@ -298,13 +300,23 @@ class OperationsForm extends FormBase {
       'init_message'     => t('Starting'),
       'progress_message' => t('Submitted @current out of @total.'),
       'error_message'    => t('An error occurred during submission'),
+      'finished' => ['\Drupal\image_auto_tag\Form\OperationsForm', 'runTraining'],
     );
     foreach ($peopleEntities as $personEntity) {
-      $this->entityOperations->syncPerson($personEntity);
-      $batch['operations'][] = ['\Drupal\image_auto_tag\EntityOperations::syncPerson',[$personEntity]];
+      // @todo: Move this somewhere more reasonable.
+      $batch['operations'][] = ['\Drupal\image_auto_tag\Form\OperationsForm::syncPerson',[$personEntity]];
     }
 
     batch_set($batch);
   }
 
+  public static function syncPerson(ContentEntityInterface $entity) {
+    \Drupal::service('image_auto_tag.entity_operations')
+      ->syncPerson($entity);
+  }
+
+  public static function runTraining() {
+    \Drupal::service('image_auto_tag')
+      ->trainPeople();
+  }
 }
