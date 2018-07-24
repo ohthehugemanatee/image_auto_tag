@@ -101,7 +101,7 @@ class EntityOperations implements EntityOperationsInterface {
             $imagePath = $image->entity->getFileUri();
             $faceId = $this->imageAutoTag->addFace($personMap->getForeignId(), $imagePath);
             $personMapStorage->create([
-              'foreign_id' => $faceId->persistedFaceId,
+              'foreign_id' => $faceId,
               'local_id' => $image->entity->id(),
               'local_entity_type' => 'file',
             ])->save();
