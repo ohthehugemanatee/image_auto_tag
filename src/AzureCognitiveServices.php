@@ -107,6 +107,21 @@ class AzureCognitiveServices {
   }
 
   /**
+   * List person Groups.
+   *
+   * @return array
+   *   The list of groups.
+   *
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   *   If anything goes wrong with the HTTP request.
+   */
+  public function listPersonGroups() : array {
+    $response = $this->httpClient->request('GET',
+      'persongroups');
+    return json_decode((string) $response->getBody());
+  }
+
+  /**
    * Run face detection.
    *
    * @param string $file
@@ -136,8 +151,6 @@ class AzureCognitiveServices {
   /**
    * Create the person group.
    *
-   * @param string $id
-   *   The Id of the proposed person group.
    * @param string $name
    *   The name of the proposed person group.
    *
@@ -147,8 +160,8 @@ class AzureCognitiveServices {
    * @throws \GuzzleHttp\Exception\GuzzleException
    *   If anything goes wrong in the HTTP request.
    */
-  public function createPersonGroup(string $id, string $name): bool {
-    $response = $this->httpClient->request('PUT', 'persongroups/' . $id, [
+  public function createPersonGroup(string $name): bool {
+    $response = $this->httpClient->request('PUT', 'persongroups/' . self::PEOPLE_GROUP, [
       'body' => json_encode([
         'name' => $name,
       ]),
