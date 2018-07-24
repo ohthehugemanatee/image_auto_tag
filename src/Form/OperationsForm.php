@@ -9,6 +9,9 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\image_auto_tag\AzureCognitiveServices;
+use Drupal\image_auto_tag\EntityOperationsInterface;
+use Drupal\image_auto_tag\ImageAutoTag;
+use Drupal\image_auto_tag\ImageAutoTagInterface;
 use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -34,6 +37,20 @@ class OperationsForm extends FormBase {
    * @var \Drupal\image_auto_tag\AzureCognitiveServices
    */
   protected $azure;
+
+  /**
+   * Image Auto Tag service.
+   *
+   * @var \Drupal\image_auto_tag\ImageAutoTagInterface
+   */
+  protected $imageAutoTag;
+
+  /**
+   * Image Auto Tag Entity Operations service.
+   *
+   * @var \Drupal\image_auto_tag\EntityOperationsInterface
+   */
+  protected $entityOperations;
 
   /**
    * Entity Type Manager.
@@ -64,8 +81,10 @@ class OperationsForm extends FormBase {
    * @param \Drupal\image_auto_tag\AzureCognitiveServices $azureCognitiveServices
    *   Azure CogSer service.
    */
-  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices, EntityTypeManagerInterface $entityTypeManager, QueueFactory $queueFactory) {
+  public function __construct(ConfigFactoryInterface $configFactory, AzureCognitiveServices $azureCognitiveServices, ImageAutoTagInterface $imageAutoTag, EntityOperationsInterface $entityOperations, EntityTypeManagerInterface $entityTypeManager, QueueFactory $queueFactory) {
     $this->azure = $azureCognitiveServices;
+    $this->imageAutotag = $imageAutoTag;
+    $this->entityOperations = $entityOperations;
     $this->entityTypeManager = $entityTypeManager;
     $this->config = $configFactory->get('image_auto_tag.settings');
     $this->queueFactory = $queueFactory;
@@ -78,6 +97,8 @@ class OperationsForm extends FormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('image_auto_tag.azure'),
+      $container->get('image_auto_tag'),
+      $container->get('image_auto_tag.entity_operations'),
       $container->get('entity_type.manager'),
       $container->get('queue')
     );
@@ -251,8 +272,39 @@ class OperationsForm extends FormBase {
     $personMapStorage = $this->entityTypeManager->getStorage('image_auto_tag_person_map');
     $allPersonMaps = $personMapStorage->loadMultiple();
     $personMapStorage->delete($allPersonMaps);
-    $this->messenger()->addStatus('All training records deleted.');
-    $this->messenger()->addWarning('Note: Re-submitting is not implemented yet. You can manually re-submit content by saving it.');
+    $this->messenger()->addStatus('All remote records deleted.');
+    $this->submitAllPeople();
+  }
+
+  /**
+   * Submit all people records with batch API.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   * @throws \Drupal\Core\TypedData\Exception\MissingDataException
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   */
+  protected function submitAllPeople() {
+    // Get the "person" entity type and bundle.
+    $personEntityBundleString = $this->config->get('person_entity_bundle');
+    list($personEntityType, $personEntityBundle) = explode('.', $personEntityBundleString);
+    // Get all people entities to submit.
+    $peopleEntities = $this->entityTypeManager->getStorage($personEntityType)
+      ->loadByProperties(['type' => $personEntityBundle]);
+
+    $batch = array(
+      'title' => $this->t('Submitting people records...'),
+      'operations' => [],
+      'init_message'     => t('Starting'),
+      'progress_message' => t('Submitted @current out of @total.'),
+      'error_message'    => t('An error occurred during submission'),
+    );
+    foreach ($peopleEntities as $personEntity) {
+      $this->entityOperations->syncPerson($personEntity);
+      $batch['operations'][] = ['\Drupal\image_auto_tag\EntityOperations::syncPerson',[$personEntity]];
+    }
+
+    batch_set($batch);
   }
 
 }
