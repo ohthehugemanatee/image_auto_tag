@@ -310,11 +310,20 @@ class OperationsForm extends FormBase {
     batch_set($batch);
   }
 
+  /**
+   * Batch API callback to sync an individual entity.
+   *
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *   The entity to be synced.
+   */
   public static function syncPerson(ContentEntityInterface $entity) {
     \Drupal::service('image_auto_tag.entity_operations')
       ->syncPerson($entity);
   }
 
+  /**
+   * Batch API callback to run training.
+   */
   public static function runTraining() {
     \Drupal::service('image_auto_tag')
       ->trainPeople();
