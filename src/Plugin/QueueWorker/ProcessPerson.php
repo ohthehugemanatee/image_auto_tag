@@ -23,7 +23,7 @@ class ProcessPerson extends QueueWorkerBase {
   public function processItem($data) {
     /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
     $entity = $this->entityTypeManager->getStorage($data['entityType'])->load($data['entityId']);
-    $this->entityOperations->processPerson($entity);
+    $this->entityOperations->syncPerson($entity);
     $entity->save();
   }
 

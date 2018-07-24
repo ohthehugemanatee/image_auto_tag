@@ -11,15 +11,10 @@ use Drupal\image_auto_tag\EntityOperationsInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Queue Worker for image_auto_tag_detect_faces.
+ * Base queue Worker for image_auto_tag_detect_faces.
  *
  * @package Drupal\image_auto_tag\Plugin\QueueWorker
  *
- * @QueueWorker(
- *   id = "image_auto_tag_detect_faces",
- *   title = @Translation("Detect Faces"),
- *   cron = {"time" = 10}
- * )
  */
 abstract class QueueWorkerBase extends CoreQueueWorkerBase implements ContainerFactoryPluginInterface {
 
