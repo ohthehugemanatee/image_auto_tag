@@ -152,7 +152,7 @@ class OperationsForm extends FormBase {
       '#type' => 'submit',
       '#value' => $this->t('Train now'),
       '#name' => 'train',
-      '#submit' => [[$this, 'train']],
+      '#submit' => [[$this, 'runTraining']],
     ];
 
     $form['queue_status'] = [
@@ -221,17 +221,9 @@ class OperationsForm extends FormBase {
       '#type' => 'submit',
       '#value' => $this->t('Reset/re-submit all people on cron'),
       '#description' => $this->t('Reset and add all people to the cron queue for processing.'),
-      '#submit' => [[$this, 'reset']],
+      '#submit' => [[$this, 'resetAndQueue']],
     ];
     return $form;
-  }
-
-  /**
-   * Submit handler for the "Train" button.
-   */
-  public function train(array &$form, FormStateInterface $form_state) {
-    $this->azure->trainPersonGroup(AzureCognitiveServices::PEOPLE_GROUP);
-    $this->messenger()->addStatus('Training request submitted.');
   }
 
   /**
@@ -254,6 +246,52 @@ class OperationsForm extends FormBase {
     $this->messenger()->addWarning('Note: Re-submitting is not implemented yet. You can manually re-submit content by saving it.');
   }
 
+  public function resetAndQueue(array &$form, FormStateInterface $form_state) {
+    $this->reset($form, $form_state);
+    $this->queueAllPeople();
+  }
+
+  /**
+   * Submit handler for the Reset and Resync button.
+   * @param array $form
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   * @throws \Drupal\Core\TypedData\Exception\MissingDataException
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   */
+  public function resetAndResync(array &$form, FormStateInterface $form_state) {
+    $this->reset($form, $form_state);
+    $this->submitAllPeople($form, $form_state);
+  }
+
+  /**
+   * Reset the queue and re-add all the people to it.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   */
+  public function queueAllPeople() {
+    // Get the "person" entity type and bundle.
+    $personEntityBundleString = $this->config->get('person_entity_bundle');
+    list($personEntityType, $personEntityBundle) = explode('.', $personEntityBundleString);
+    // Queue all people entities.
+    $peopleEntityIds = $this->entityTypeManager->getStorage($personEntityType)->getQuery()
+      ->condition('type', $personEntityBundle)
+      ->execute();
+    $queue = $this->queueFactory->get('image_auto_tag_process_person');
+    $queue->deleteQueue();
+    $queue = $this->queueFactory->get('image_auto_tag_process_person');
+    foreach ($peopleEntityIds as $entityId) {
+      $queue->createItem(
+        [
+          'entityId' => $entityId,
+          'entityType' => $personEntityType,
+        ]
+      );
+    }
+  }
+
   /**
    * Submit handler for the "Reset" button.
    *
@@ -274,8 +312,6 @@ class OperationsForm extends FormBase {
     $personMapStorage = $this->entityTypeManager->getStorage('image_auto_tag_person_map');
     $allPersonMaps = $personMapStorage->loadMultiple();
     $personMapStorage->delete($allPersonMaps);
-    $this->messenger()->addStatus('All remote records deleted.');
-    $this->submitAllPeople();
   }
 
   /**
