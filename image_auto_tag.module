@@ -90,7 +90,7 @@ function image_auto_tag_entity_presave(EntityInterface $entity) {
       (!isset($entity->original) || $entity->get($fieldName)->entity->id() !== $entity->original->get($fieldName)->entity->id())
     ) {
       // If this should be processed asynchronously, queue it and return.
-      if (\Drupal::config('image_auto_tag.settings')->get('synchronous_mode') === FALSE) {
+      if (\Drupal::config('image_auto_tag.settings')->get('synchronous') === FALSE) {
         // Queue processing for later.
         /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
         $queue_factory = \Drupal::service('queue');
@@ -149,7 +149,7 @@ function _image_auto_tag_entity_post_save(EntityInterface $entity) {
   // If the entity is our "people" entity, check faces.
   if ($entity->getEntityTypeId() === $targetEntityType && $entity->bundle() === $targetEntityBundle) {
     // If this should be processed asynchronously, queue it and return.
-    if ($config->get('synchronous_mode') === FALSE) {
+    if ($config->get('synchronous') === FALSE) {
       // Queue processing for later.
       /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
       $queue_factory = \Drupal::service('queue');
@@ -186,7 +186,7 @@ function _image_auto_tag_entity_post_save(EntityInterface $entity) {
 function image_auto_tag_entity_delete(EntityInterface $entity) {
   if ($entity instanceof ContentEntityInterface) {
     // If this should be processed asynchronously, queue it and return.
-    if (\Drupal::config('image_auto_tag.settings')->get('synchronous_mode') === FALSE) {
+    if (\Drupal::config('image_auto_tag.settings')->get('synchronous') === FALSE) {
       // Queue processing for later.
       /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
       $queue_factory = \Drupal::service('queue');
