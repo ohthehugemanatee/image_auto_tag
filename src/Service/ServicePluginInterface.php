@@ -42,7 +42,6 @@ interface ServicePluginInterface extends PluginInspectionInterface, ContainerFac
    *
    * @return array
    *   Data on an individual person. An array with at least these keys:
-   *    - personId: (string) the unique Id of the person on the remote service.
    *    - faceIds: (array) unique Ids of registered Faces on the remote person
    *      record.
    *    - name: (string) The Person's name.
