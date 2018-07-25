@@ -233,7 +233,7 @@ class OperationsForm extends FormBase {
 
     $form['submit_to_queue'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Reset/re-submit all people on cron'),
+      '#value' => $this->t('Reset/re-queue all people'),
       '#description' => $this->t('Reset and add all people to the cron queue for processing.'),
       '#submit' => [[$this, 'resetAndQueue']],
     ];
@@ -246,7 +246,7 @@ class OperationsForm extends FormBase {
    * @param array $form
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    */
-  public function runQueues(array &$form, FormStateInterface $form_state) {
+  public function runQueues(array &$form, FormStateInterface $form_state) : void {
     $this->messenger()->addWarning('Sorry, running queues is not implemented yet.');
   }
 
@@ -256,7 +256,7 @@ class OperationsForm extends FormBase {
    * @param array $form
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    */
-  public function submitMissingPeople(array &$form, FormStateInterface $form_state) {
+  public function submitMissingPeople(array &$form, FormStateInterface $form_state) : void {
     // Find people entities without a mapping record.
     $peopleEntities = $this->entityTypeManager->getStorage($this->personEntityType)->getQuery()
       ->condition('type', $this->personEntityBundle)
@@ -279,15 +279,13 @@ class OperationsForm extends FormBase {
         ->loadMultiple($missingPeople);
       $this->submitPeople($missingPeopleEntities);
     }
-  }
-
-  public function resetAndQueue(array &$form, FormStateInterface $form_state) {
-    $this->reset($form, $form_state);
-    $this->queueAllPeople();
+    $missingPeopleCount = count($missingPeople);
+    $this->messenger()->addStatus("Submitted {$missingPeopleCount} People, and ran training.");
   }
 
   /**
    * Submit handler for the Reset and Resync button.
+   *
    * @param array $form
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *
@@ -296,23 +294,41 @@ class OperationsForm extends FormBase {
    * @throws \Drupal\Core\TypedData\Exception\MissingDataException
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
-  public function resetAndResync(array &$form, FormStateInterface $form_state) {
+  public function resetAndResync(array &$form, FormStateInterface $form_state) : void {
     $this->reset($form, $form_state);
     $this->submitAllPeople($form, $form_state);
+    $this->messenger()->addStatus("Reset all People data on the remote service, resubmitted all people, and ran training.");
   }
+
+  /**
+   * Submit handler for the "Reset and Queue" button.
+   *
+   * @param array $form
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   */
+  public function resetAndQueue(array &$form, FormStateInterface $form_state) : void {
+    $this->reset($form, $form_state);
+    $this->queueAllPeople();
+    $this->messenger()->addStatus("Reset all People data on the remote service, and added all People to the cron queue.");
+  }
+
 
   /**
    * Reset the queue and re-add all the people to it.
    *
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    */
-  public function queueAllPeople() {
+  protected function queueAllPeople() : void {
     // Queue all people entities.
     $peopleEntityIds = $this->entityTypeManager->getStorage($this->personEntityType)->getQuery()
       ->condition('type', $this->personEntityBundle)
       ->execute();
+    // Clear the existing queue.
     $queue = $this->queueFactory->get('image_auto_tag_process_person');
     $queue->deleteQueue();
+    // Add all people to the queue.
     $queue = $this->queueFactory->get('image_auto_tag_process_person');
     foreach ($peopleEntityIds as $entityId) {
       $queue->createItem(
@@ -325,14 +341,9 @@ class OperationsForm extends FormBase {
   }
 
   /**
-   * Submit handler for the "Reset" button.
-   *
-   * @param array $form
-   *   The form array.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   Form status.
+   * Reset all person records on the remote service.
    */
-  public function reset(array &$form, FormStateInterface $form_state) {
+  protected function reset() : void {
     try {
       $this->azure->deletePersonGroup();
       $this->azure->createPersonGroup('Automatically created group for Drupal Image Auto Tag module.');
@@ -342,7 +353,7 @@ class OperationsForm extends FormBase {
       return;
     }
     $personMapStorage = $this->entityTypeManager->getStorage('image_auto_tag_person_map');
-    $allPersonMaps = $personMapStorage->loadMultiple();
+    $allPersonMaps = $personMapStorage->loadByProperties(['local_entity_type' => $this->personEntityType]);
     $personMapStorage->delete($allPersonMaps);
   }
 
@@ -354,7 +365,7 @@ class OperationsForm extends FormBase {
    * @throws \Drupal\Core\TypedData\Exception\MissingDataException
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
-  protected function submitAllPeople() {
+  protected function submitAllPeople() : void {
     // Get all people entities to submit.
     $peopleEntities = $this->entityTypeManager->getStorage($this->personEntityType)
       ->loadByProperties(['type' => $this->personEntityBundle]);
@@ -365,8 +376,9 @@ class OperationsForm extends FormBase {
    * Submit a given set of people entities for training using batch API.
    *
    * @param array $peopleEntities
+   *   Loaded people entities to sync.
    */
-  protected function submitPeople(array $peopleEntities) {
+  protected function submitPeople(array $peopleEntities) : void {
     $batch = array(
       'title' => $this->t('Submitting people records...'),
       'operations' => [],
@@ -389,7 +401,7 @@ class OperationsForm extends FormBase {
    * @param \Drupal\Core\Entity\ContentEntityInterface $entity
    *   The entity to be synced.
    */
-  public static function syncPerson(ContentEntityInterface $entity) {
+  public static function syncPerson(ContentEntityInterface $entity) : void {
     \Drupal::service('image_auto_tag.entity_operations')
       ->syncPerson($entity);
   }
@@ -397,8 +409,9 @@ class OperationsForm extends FormBase {
   /**
    * Batch API callback to run training.
    */
-  public static function runTraining() {
+  public static function runTraining() : void {
     \Drupal::service('image_auto_tag')
       ->trainPeople();
   }
+
 }
