@@ -96,6 +96,14 @@ class SettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
     $config = $this->config('image_auto_tag.settings');
 
+    // Check the current saved connection details.
+    try {
+      $this->azure->serviceStatus();
+      $this->messenger()->addMessage('Connection test successful.');
+    }
+    catch (TransferException $e) {
+      $this->messenger()->addWarning("Received code {$e->getCode()} from Azure. Message: '{$e->getMessage()}'");
+    }
     $form['azure_endpoint'] = [
       '#title' => t('Azure endpoint'),
       '#description' => t('The Media Services endpoint you want to use.'),
@@ -237,15 +245,6 @@ class SettingsForm extends ConfigFormBase {
     if (!isset($fieldMap[$entityTypeId][$imageFieldName]) ||
       !\in_array($entityBundleId, $fieldMap[$entityTypeId][$imageFieldName]['bundles'], TRUE)) {
       $form_state->setErrorByName('person_image_field', 'The image field must exist on the person entity bundle.');
-    }
-
-    // Test the connection with these details.
-    try {
-      AzureCognitiveServices::testCredentials($form_state->getValue('azure_endpoint'), $form_state->getValue('azure_service_key'));
-      $this->messenger()->addMessage('Connection test successful.');
-    }
-    catch (TransferException $e) {
-      $this->messenger()->addWarning("Received code {$e->getCode()} from Azure. Message: '{$e->getMessage()}'");
     }
 
     parent::validateForm($form, $form_state);
