@@ -8,3 +8,6 @@ services:
   image_auto_tag.entity_operations:
     class: Drupal\image_auto_tag\EntityOperations
     arguments: ['@image_auto_tag', '@entity_type.manager', '@config.factory']
+  plugin.manager.image_auto_tag.service:
+    class: Drupal\image_auto_tag\Service\ServicePluginManager
+    parent: default_plugin_manager
