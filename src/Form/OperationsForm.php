@@ -10,9 +10,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\image_auto_tag\AzureCognitiveServices;
-use Drupal\image_auto_tag\EntityOperations;
 use Drupal\image_auto_tag\EntityOperationsInterface;
-use Drupal\image_auto_tag\ImageAutoTag;
 use Drupal\image_auto_tag\ImageAutoTagInterface;
 use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -76,6 +74,20 @@ class OperationsForm extends FormBase {
   protected $queueFactory;
 
   /**
+   * Person Entity type Id.
+   *
+   * @var string
+   */
+  protected $personEntityType;
+
+  /**
+   * Person Entity Bundle Id.
+   *
+   * @var string
+   */
+  protected $personEntityBundle;
+
+  /**
    * SettingsForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -90,6 +102,10 @@ class OperationsForm extends FormBase {
     $this->entityTypeManager = $entityTypeManager;
     $this->config = $configFactory->get('image_auto_tag.settings');
     $this->queueFactory = $queueFactory;
+
+    // Get the "person" entity type and bundle.
+    $personEntityBundleString = $this->config->get('person_entity_bundle');
+    [$this->personEntityType, $this->personEntityBundle] = explode('.', $personEntityBundleString);
   }
 
   /**
@@ -174,16 +190,13 @@ class OperationsForm extends FormBase {
       '#submit' => [[$this, 'runQueues']],
     ];
 
-    // Get the "person" entity type and bundle.
-    $personEntityBundleString = $this->config->get('person_entity_bundle');
-    list($personEntityType, $personEntityBundle) = explode('.', $personEntityBundleString);
     // Count the number of people, and the number of people maps.
-    $peopleEntityCount = $this->entityTypeManager->getStorage($personEntityType)->getQuery()
-      ->condition('type', $personEntityBundle)
+    $peopleEntityCount = $this->entityTypeManager->getStorage($this->personEntityType)->getQuery()
+      ->condition('type', $this->personEntityBundle)
       ->count()
       ->execute();
     $peopleMapCount = $this->entityTypeManager->getStorage('image_auto_tag_person_map')->getQuery()
-      ->condition('local_entity_type', $personEntityType)
+      ->condition('local_entity_type', $this->personEntityType)
       ->count()
       ->execute();
     // Progress bar.
@@ -272,12 +285,9 @@ class OperationsForm extends FormBase {
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    */
   public function queueAllPeople() {
-    // Get the "person" entity type and bundle.
-    $personEntityBundleString = $this->config->get('person_entity_bundle');
-    list($personEntityType, $personEntityBundle) = explode('.', $personEntityBundleString);
     // Queue all people entities.
-    $peopleEntityIds = $this->entityTypeManager->getStorage($personEntityType)->getQuery()
-      ->condition('type', $personEntityBundle)
+    $peopleEntityIds = $this->entityTypeManager->getStorage($this->personEntityType)->getQuery()
+      ->condition('type', $this->personEntityBundle)
       ->execute();
     $queue = $this->queueFactory->get('image_auto_tag_process_person');
     $queue->deleteQueue();
@@ -286,7 +296,7 @@ class OperationsForm extends FormBase {
       $queue->createItem(
         [
           'entityId' => $entityId,
-          'entityType' => $personEntityType,
+          'entityType' => $this->personEntityType,
         ]
       );
     }
@@ -323,12 +333,9 @@ class OperationsForm extends FormBase {
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
   protected function submitAllPeople() {
-    // Get the "person" entity type and bundle.
-    $personEntityBundleString = $this->config->get('person_entity_bundle');
-    list($personEntityType, $personEntityBundle) = explode('.', $personEntityBundleString);
     // Get all people entities to submit.
-    $peopleEntities = $this->entityTypeManager->getStorage($personEntityType)
-      ->loadByProperties(['type' => $personEntityBundle]);
+    $peopleEntities = $this->entityTypeManager->getStorage($this->personEntityType)
+      ->loadByProperties(['type' => $this->personEntityBundle]);
 
     $batch = array(
       'title' => $this->t('Submitting people records...'),
