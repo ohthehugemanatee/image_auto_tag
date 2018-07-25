@@ -12,6 +12,7 @@ use Drupal\Core\Queue\QueueFactory;
 use Drupal\image_auto_tag\AzureCognitiveServices;
 use Drupal\image_auto_tag\EntityOperationsInterface;
 use Drupal\image_auto_tag\ImageAutoTagInterface;
+use Drupal\migrate_drupal\Plugin\migrate\source\ContentEntity;
 use GuzzleHttp\Exception\TransferException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -256,7 +257,28 @@ class OperationsForm extends FormBase {
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    */
   public function submitMissingPeople(array &$form, FormStateInterface $form_state) {
-    $this->messenger()->addWarning('Note: Re-submitting is not implemented yet. You can manually re-submit content by saving it.');
+    // Find people entities without a mapping record.
+    $peopleEntities = $this->entityTypeManager->getStorage($this->personEntityType)->getQuery()
+      ->condition('type', $this->personEntityBundle)
+      ->execute();
+    /** @var \Drupal\image_auto_tag\Entity\PersonMapInterface[] $mapEntities */
+    $mapEntities = $this->entityTypeManager->getStorage('image_auto_tag_person_map')
+      ->loadByProperties(
+        [
+          'local_entity_type' => $this->personEntityType,
+        ]);
+    $mappedPeople = [];
+    foreach ($mapEntities as $mapEntity) {
+      $localId = $mapEntity->getLocalId();
+      $mappedPeople[$localId] = $localId;
+    }
+    $missingPeople = array_diff($peopleEntities, $mappedPeople);
+    // Submit the missing people.
+    if ($missingPeople !== []) {
+      $missingPeopleEntities = $this->entityTypeManager->getStorage($this->personEntityType)
+        ->loadMultiple($missingPeople);
+      $this->submitPeople($missingPeopleEntities);
+    }
   }
 
   public function resetAndQueue(array &$form, FormStateInterface $form_state) {
@@ -336,7 +358,15 @@ class OperationsForm extends FormBase {
     // Get all people entities to submit.
     $peopleEntities = $this->entityTypeManager->getStorage($this->personEntityType)
       ->loadByProperties(['type' => $this->personEntityBundle]);
+    $this->submitPeople($peopleEntities);
+  }
 
+  /**
+   * Submit a given set of people entities for training using batch API.
+   *
+   * @param array $peopleEntities
+   */
+  protected function submitPeople(array $peopleEntities) {
     $batch = array(
       'title' => $this->t('Submitting people records...'),
       'operations' => [],
@@ -347,7 +377,7 @@ class OperationsForm extends FormBase {
     );
     foreach ($peopleEntities as $personEntity) {
       // @todo: Move this somewhere more reasonable.
-      $batch['operations'][] = ['\Drupal\image_auto_tag\Form\OperationsForm::syncPerson',[$personEntity]];
+      $batch['operations'][] = ['\Drupal\image_auto_tag\Form\OperationsForm::syncPerson', [$personEntity]];
     }
 
     batch_set($batch);
