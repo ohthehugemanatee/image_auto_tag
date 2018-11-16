@@ -7,6 +7,7 @@ namespace Drupal\image_auto_tag;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Http\ClientFactory;
+use Drupal\image_auto_tag\Service\ServicePluginInterface;
 use GuzzleHttp\Exception\TransferException;
 
 /**
@@ -16,7 +17,7 @@ use GuzzleHttp\Exception\TransferException;
  *
  * @package Drupal\image_auto_tag
  */
-class AzureCognitiveServices {
+class AzureCognitiveServices implements ServicePluginInterface {
 
   const PEOPLE_GROUP = 'drupal_image_auto_tag_people';
 
